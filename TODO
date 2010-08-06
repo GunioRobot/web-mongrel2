@@ -1,0 +1,7 @@
+# -*- mode:org -*-
+
+* Style
+** TODO http://urchin.earth.li/~ian/style/haskell.html Most notably, camelCase
+*** TODO If nothing else, get things consistent.  It's a mess atm.
+** TODO literate style for Network.Mongrel2.hs? Good time to learn it.
+** TODO Probably need to rename everything under to Web.Mongrel2

@@ -1,0 +1,10 @@
+
+!http://github.com/cmoore/huckleberry/raw/master/doc/huck.jpg!
+
+h3. Huckleberry Hound
+
+A handler for Mongrel2 in Haskell.
+
+h3. Status
+
+BROKEN!  Don't worry though, I'm working on it.

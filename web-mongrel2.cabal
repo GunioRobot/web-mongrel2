@@ -1,0 +1,23 @@
+Name:                 web-mongrel2
+Version:              0.0.1
+Build-type:           Simple
+Synopsis:             Bindings for the Mongrel2 web server.
+
+License:              BSD3
+License-file:         LICENSE
+Cabal-Version:        >= 1.3
+Author:               Clint Moore
+Maintainer:           Clint Moore <cmoore@wamboli.com>
+Build-Depends:        base
+category:             Web
+homepage:             http://github.com/cmoore/haskell-mongrel2
+
+library
+  ghc-options: -Wall -Werror -O2 -threaded
+  build-depends:
+        base >= 4, data-default, json, MissingH, parsec,
+        system-uuid, zeromq-haskell, template-haskell
+  hs-source-dirs: src/
+  exposed-modules:
+        Web.Mongrel2
+        Web.Mongrel2.QQ
