@@ -1,11 +1,8 @@
+{-# LANGUAGE QuasiQuotes #-}
 
-module Web.Mongrel2 ( connect,
-                          parse,
-                          Mongrel2(..),
-                          Request(..),
-                          Response(..),
-                          RequestHeaders(..) 
-                        ) where
+module Web.Mongrel2  where
+import Web.Mongrel2.QQ
+
 
 import qualified System.ZMQ as Z
 import Control.Applicative
@@ -14,12 +11,12 @@ import Data.Maybe
 import Data.Default
 import qualified Text.JSON as JS
 import Control.Monad (liftM)
-
+import qualified Data.ByteString.Char8 as BS
+import Text.StringTemplate
 import Prelude hiding (lookup)
 import qualified Text.ParserCombinators.Parsec as P
 import Data.String.Utils (join,split,splitWs)
-
-{-  TYPES   -}
+import System.Time (getClockTime)
 
 data RequestHeaders = RequestHeaders {
       r_uuid :: String,
@@ -40,9 +37,6 @@ data Request = Request {
       m_user_agent :: String
     } deriving (Show)
 
-{-
-UUID SIZE:ID, BODY
--}
 data Response = Response {
       rUUID :: String,
       rID :: String,
@@ -95,9 +89,6 @@ instance Default Response where
           rID = def,
           rUUID = def
         }
-
-
-{- Parser -}
 
 lookup :: String -> (JS.JSObject JS.JSValue) -> Maybe String
 lookup k bndl =
@@ -185,9 +176,47 @@ msplit a =
        [] -> Left "failed on split."
        b -> Right ((join " " $ take 3 b),(join " " $ drop 3 b))
 
+getRequest :: Z.Socket a -> IO BS.ByteString
+getRequest s = Z.receive s []
 
-{-  Functions  -}
+sendResponse :: Z.Socket a -> Response -> IO ()
+sendResponse sock resp = do
+  now <- getClockTime
+  let st = newSTMP respTemplate
+  let okfine = BS.pack $ render $
+               setManyAttrib [("uuid",(rUUID resp)),
+                              ("size",(show $ length $ rID resp)),
+                              ("id", (rID resp)),
+                              ("now", (show now)),
+                              ("clen", (show $ length $ rBody resp)),
+                              ("sep", "\r\n"),
+                              ("body",(rBody resp))] st
+  Z.send sock okfine []
 
+recv :: (Request -> IO Response) -> Z.Socket a -> [Z.Poll] -> IO ()
+recv handle pub ((Z.S s _):_ss) = do
+     req <- Z.receive s []
+     case parse (BS.unpack req) of
+       Left _err -> return ()
+       Right rq -> do
+         rsp <- handle rq
+         now <- getClockTime
+         let st = newSTMP respTemplate
+         let okfine = BS.pack $ render $
+                       setManyAttrib [("uuid",(rUUID rsp)),
+                                      ("size",(show $ length $ rID rsp)),
+                                      ("id", (rID rsp)),
+                                      ("now", (show now)),
+                                      ("clen", (show $ length $ rBody rsp)),
+                                      ("sep", "\r\n"),
+                                      ("body",(rBody rsp))] st
+
+         Z.send pub okfine []
+recv _ _ _ = return ()
+
+mpoll :: Z.Socket a -> IO [Z.Poll]
+mpoll sock = do
+  Z.poll [Z.S sock Z.In] 1000000
 
 connect :: Mongrel2 -> IO Mongrel2
 connect mong = do
@@ -217,4 +246,14 @@ connect mong = do
                    uuid = Just (show uid)
                  }
         
+respTemplate :: String
+respTemplate = [$qq|$uuid$ $size$:$id$, HTTP/1.1 200 OK
+Content-Type: text/html; charset=UTF-8
+Connection: close
+Content-Length: $clen$
+Server: Mongrel2
+Date: $now$
+
+$body$
+|]
 
