@@ -1,10 +1,10 @@
 
-!http://github.com/cmoore/huckleberry/raw/master/doc/huck.jpg!
+h3. web-mongrel2
 
-h3. Huckleberry Hound
-
-A handler for Mongrel2 in Haskell.
+This library attempts to abstract away some of the details of connecting Haskell web frameworks to Mongrel2.
 
 h3. Status
 
-BROKEN!  Don't worry though, I'm working on it.
+Very basic communication.  Only really tested with basic GET and POST requests.
+
+
