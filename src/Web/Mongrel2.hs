@@ -1,107 +1,114 @@
 {-# LANGUAGE QuasiQuotes #-}
 
 module Web.Mongrel2  where
+
 import Web.Mongrel2.QQ
 
-
-import qualified System.ZMQ as Z
-import Control.Applicative
-import qualified System.UUID.V4 as UU
-import Data.Maybe
-import Data.Default
-import qualified Text.JSON as JS
-import Control.Monad (liftM)
-import qualified Data.ByteString.Char8 as BS
-import Text.StringTemplate
-import Prelude hiding (lookup)
 import qualified Text.ParserCombinators.Parsec as P
 import Data.String.Utils (join,split,splitWs)
+import qualified Data.ByteString.Char8 as BS
+import qualified System.UUID.V4 as UU
 import System.Time (getClockTime)
+import qualified Text.JSON as JS
+import qualified System.ZMQ as Z
+import Prelude hiding (lookup)
+import Control.Monad (liftM)
+import Text.StringTemplate
+import Control.Applicative
+import Data.Default
 
+
+-- | The Mongrel2 specific request headers.
 data RequestHeaders = RequestHeaders {
-      r_uuid :: String,
-      r_id :: String,
-      r_path :: String
-    } deriving (Show)
-                    
-data Request = Request {
-      m_request_headers :: RequestHeaders,
-      m_path :: String,
-      m_method :: String,
-      m_version :: String,
-      m_uri :: String,
-      m_pattern :: String,
-      m_accept :: String,
-      m_host :: String,
-      m_query_string :: String,
-      m_user_agent :: String
+      rhUUID :: String,
+      rhID :: String,
+      rhPath :: String
     } deriving (Show)
 
+-- | An incoming request from the server.
+data Request = Request {
+      rRequestHeaders :: RequestHeaders,
+      rPath :: String,
+      rMethod :: String,
+      rVersion :: String,
+      rURI :: String,
+      rPattern :: String,
+      rAccept :: String,
+      rHost :: String,
+      rQueryString :: String,
+      rUserAgent :: String
+    } deriving (Show)
+
+-- | The response to send back.
 data Response = Response {
-      rUUID :: String,
-      rID :: String,
-      rBody :: String
+      respUUID :: String,
+      respID :: String,
+      respBody :: String
     }
 
+-- | The handlers internal data.
 data Mongrel2 = Mongrel2 {
-      mpublish :: String,
-      mpublishs :: Maybe (Z.Socket Z.Pub),
-      msubscribe :: String,
-      msubscribes :: Maybe (Z.Socket Z.Up),
-      mcontext :: Maybe Z.Context,
-      uuid :: Maybe String
+      mPublish :: String,
+      mPublishS :: Maybe (Z.Socket Z.Pub),
+      mSubscribe :: String,
+      mSubscribeS :: Maybe (Z.Socket Z.Up),
+      mContext :: Maybe Z.Context,
+      mUUID :: Maybe String
     }
 
 instance Default Mongrel2 where
   def = Mongrel2 {
-          mpublish = def,
-          mpublishs = Nothing,
-          msubscribe = def,
-          msubscribes = Nothing,
-          mcontext = Nothing,
-          uuid = Nothing
+          mPublish = def,
+          mPublishS = Nothing,
+          mSubscribe = def,
+          mSubscribeS = Nothing,
+          mContext = Nothing,
+          mUUID = Nothing
         }
 
 instance Default RequestHeaders where
   def = RequestHeaders {
-          r_uuid = def,
-          r_id = def,
-          r_path = def
+          rhUUID = def,
+          rhID = def,
+          rhPath = def
         }
 
 instance Default Request where
   def = Request {
-          m_request_headers = def,
-          m_path = def,
-          m_method = def,
-          m_version = def,
-          m_uri = def,
-          m_pattern = def,
-          m_accept = def,
-          m_host = def,
-          m_query_string = def,
-          m_user_agent = def
+          rRequestHeaders = def,
+          rPath = def,
+          rMethod = def,
+          rVersion = def,
+          rURI = def,
+          rPattern = def,
+          rAccept = def,
+          rHost = def,
+          rQueryString = def,
+          rUserAgent = def
         }
 
 instance Default Response where
   def = Response {
-          rBody = def,
-          rID = def,
-          rUUID = def
+          respBody = def,
+          respID = def,
+          respUUID = def
         }
 
+-- | Lookup a key from the JSON-encoded request from Mongrel2
 lookup :: String -> (JS.JSObject JS.JSValue) -> Maybe String
 lookup k bndl =
   case JS.valFromObj k bndl of
     JS.Ok v -> Just $ JS.fromJSString v
     _ -> Nothing
 
+-- | Attempt to parse the JSON-encoded request body from Mongrel2
 decode :: String -> Either String ( JS.JSObject JS.JSValue )
 decode inc =
   case JS.decode inc of
     JS.Ok (JS.JSObject b) -> Right b
     _ -> Left "failed on json decode."
 
+-- | Attempts to parse the entire request from Mongrel.
 request_env :: String -> Either String Request
 request_env request_body =
   case P.parse netStrings "" request_body of
@@ -122,17 +129,17 @@ request_env request_body =
             Just ( path',method',version',uri',
                    pattern',accept',host',user_agent') -> do
                                             
-              let rq = def { m_path = path'
-                           , m_method = method'
-                           , m_version = version' 
-                           , m_uri = uri'
-                           , m_pattern = pattern'
-                           , m_accept = accept'
-                           , m_host = host'
-                           , m_user_agent = user_agent' }
+              let rq = def { rPath = path'
+                           , rMethod = method'
+                           , rVersion = version' 
+                           , rURI = uri'
+                           , rPattern = pattern'
+                           , rAccept = accept'
+                           , rHost = host'
+                           , rUserAgent = user_agent' }
               case lookup "QUERY" json of
                 Nothing -> Right rq
-                Just v -> Right rq { m_query_string = v }
+                Just v -> Right rq { rQueryString = v }
 
 parse :: String -> Either String Request
 parse request = do
@@ -144,7 +151,7 @@ parse request = do
         Right request_headers ->
           case request_env c of
             Left e -> Left e
-            Right req -> Right req { m_request_headers = request_headers }
+            Right req -> Right req { rRequestHeaders = request_headers }
 
 -- Love to http://www.weavejester.com/node/7
 netStrings :: P.Parser (String,String)
@@ -164,9 +171,9 @@ netStrings = do
 preamble :: String -> Either String RequestHeaders
 preamble b =
   case splitWs b of
-    [uid,rid,path] -> Right $ def { r_uuid = uid,
-                                    r_id = rid,
-                                    r_path = path
+    [uid,rid,path] -> Right $ def { rhUUID = uid,
+                                    rhID = rid,
+                                    rhPath = path
                                   }
     _ -> Left "splitWs failed."
   
@@ -184,13 +191,13 @@ sendResponse sock resp = do
   now <- getClockTime
   let st = newSTMP respTemplate
   let okfine = BS.pack $ render $
-               setManyAttrib [("uuid",(rUUID resp)),
-                              ("size",(show $ length $ rID resp)),
-                              ("id", (rID resp)),
+               setManyAttrib [("uuid",(respUUID resp)),
+                              ("size",(show $ length $ respID resp)),
+                              ("id", (respID resp)),
                               ("now", (show now)),
-                              ("clen", (show $ length $ rBody resp)),
+                              ("clen", (show $ length $ respBody resp)),
                               ("sep", "\r\n"),
-                              ("body",(rBody resp))] st
+                              ("body",(respBody resp))] st
   Z.send sock okfine []
 
 recv :: (Request -> IO Response) -> Z.Socket a -> [Z.Poll] -> IO ()
@@ -203,13 +210,13 @@ recv handle pub ((Z.S s _):_ss) = do
          now <- getClockTime
          let st = newSTMP respTemplate
          let okfine = BS.pack $ render $
-                       setManyAttrib [("uuid",(rUUID rsp)),
-                                      ("size",(show $ length $ rID rsp)),
-                                      ("id", (rID rsp)),
+                       setManyAttrib [("uuid",(respUUID rsp)),
+                                      ("size",(show $ length $ respID rsp)),
+                                      ("id", (respID rsp)),
                                       ("now", (show now)),
-                                      ("clen", (show $ length $ rBody rsp)),
+                                      ("clen", (show $ length $ respBody rsp)),
                                       ("sep", "\r\n"),
-                                      ("body",(rBody rsp))] st
+                                      ("body",(respBody rsp))] st
 
          Z.send pub okfine []
 recv _ _ _ = return ()
@@ -220,8 +227,8 @@ mpoll sock = do
 
 connect :: Mongrel2 -> IO Mongrel2
 connect mong = do
-  case ((,) <$> mpublishs mong
-        <*> msubscribes mong) of
+  case ((,) <$> mPublishS mong
+        <*> mSubscribeS mong) of
     Just _ -> return mong
     Nothing -> do
       -- Trash the context?  Not sure if this is a good idea.
@@ -233,17 +240,17 @@ connect mong = do
       
       uid <- liftM show UU.uuid
 
-      Z.connect sub $ msubscribe mong
+      Z.connect sub $ mSubscribe mong
       Z.setOption sub $ Z.Identity uid
 
-      Z.connect pub $ mpublish mong
+      Z.connect pub $ mPublish mong
       Z.setOption pub $ Z.Identity uid
 
       return $ mong {
-                   mpublishs = Just pub,
-                   msubscribes = Just sub,
-                   mcontext = Just ctx, 
-                   uuid = Just (show uid)
+                   mPublishS = Just pub,
+                   mSubscribeS = Just sub,
+                   mContext = Just ctx, 
+                   mUUID = Just (show uid)
                  }
         
 respTemplate :: String
