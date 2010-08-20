@@ -1,10 +1,14 @@
 
 h3. web-mongrel2
 
-This library attempts to abstract away some of the details of connecting Haskell web frameworks to Mongrel2.
+This library attempts to abstract away some the details of connecting Haskell web frameworks to Mongrel2.
 
 h3. Status
 
 Very basic communication.  Only really tested with basic GET and POST requests.
+
+h3. Examples
+
+Take a look at <a href="/cmoore/hack-handler-mongrel2">hack-handler-mongrel2</a> for an example of a working, although quite simple, framework.
 
 

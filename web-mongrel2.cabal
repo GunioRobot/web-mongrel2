@@ -1,5 +1,5 @@
 Name:                 web-mongrel2
-Version:              0.0.3
+Version:              0.0.4
 Build-type:           Simple
 Synopsis:             Bindings for the Mongrel2 web server.
 

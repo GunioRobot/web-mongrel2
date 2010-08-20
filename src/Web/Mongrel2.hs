@@ -1,18 +1,15 @@
 {-# LANGUAGE QuasiQuotes #-}
 
 module Web.Mongrel2  where
-
 import Web.Mongrel2.QQ
 
 import qualified Text.ParserCombinators.Parsec as P
 import Data.String.Utils (join,split,splitWs)
 import qualified Data.ByteString.Char8 as BS
-import qualified System.UUID.V4 as UU
 import System.Time (getClockTime)
 import qualified Text.JSON as JS
 import qualified System.ZMQ as Z
 import Prelude hiding (lookup)
-import Control.Monad (liftM)
 import Text.StringTemplate
 import Control.Applicative
 import Data.Default
@@ -178,10 +175,9 @@ preamble b =
     _ -> Left "splitWs failed."
   
 msplit :: String -> Either String (String,String)
-msplit a =
-     case split " " a of
-       [] -> Left "failed on split."
-       b -> Right ((join " " $ take 3 b),(join " " $ drop 3 b))
+msplit a = case split " " a of
+             [] -> Left "failed on split."
+             b -> Right ((join " " $ take 3 b),(join " " $ drop 3 b))
 
 getRequest :: Z.Socket a -> IO BS.ByteString
 getRequest s = Z.receive s []
@@ -222,35 +218,32 @@ recv handle pub ((Z.S s _):_ss) = do
 recv _ _ _ = return ()
 
 mpoll :: Z.Socket a -> IO [Z.Poll]
-mpoll sock = do
-  Z.poll [Z.S sock Z.In] 1000000
+mpoll sock = Z.poll [Z.S sock Z.In] 1000000
 
 connect :: Mongrel2 -> IO Mongrel2
 connect mong = do
   case ((,) <$> mPublishS mong
-        <*> mSubscribeS mong) of
+        <*> mSubscribeS mong ) of
     Just _ -> return mong
     Nothing -> do
-      -- Trash the context?  Not sure if this is a good idea.
-      -- Nor do I know if building both sockets off of same
-      -- context is a bad thing or not.  We'll soon see, I'm sure.
       ctx <- Z.init 1
       pub <- Z.socket ctx Z.Pub
       sub <- Z.socket ctx Z.Up
       
-      uid <- liftM show UU.uuid
-
+      let uid = case mUUID mong of
+            Just v -> v
+            Nothing ->  "82209006-86FF-4982-B5EA-D1E29E55D481"
       Z.connect sub $ mSubscribe mong
       Z.setOption sub $ Z.Identity uid
-
+      
       Z.connect pub $ mPublish mong
       Z.setOption pub $ Z.Identity uid
 
       return $ mong {
                    mPublishS = Just pub,
                    mSubscribeS = Just sub,
-                   mContext = Just ctx, 
-                   mUUID = Just (show uid)
+                   mContext = Just ctx,
+                   mUUID = Just uid
                  }
         
 respTemplate :: String
