@@ -48,7 +48,7 @@ data Mongrel2 = Mongrel2 {
       mPublish :: String,
       mPublishS :: Maybe (Z.Socket Z.Pub),
       mSubscribe :: String,
-      mSubscribeS :: Maybe (Z.Socket Z.Up),
+      mSubscribeS :: Maybe (Z.Socket Z.Pull),
       mContext :: Maybe Z.Context,
       mUUID :: Maybe String
     }
@@ -110,7 +110,7 @@ request_env :: String -> Either String Request
 request_env request_body =
   case P.parse netStrings "" request_body of
     Left _ -> Left "Failed P.parse"
-    Right (a,_rst) ->
+    Right (a,rst) ->
       case decode a of
         Left c -> Left c
         Right json -> 
@@ -126,18 +126,17 @@ request_env request_body =
             Just ( path',method',version',uri',
                    pattern',accept',host',user_agent') -> do
                                             
-              let rq = def { rPath = path'
-                           , rMethod = method'
-                           , rVersion = version' 
-                           , rURI = uri'
-                           , rPattern = pattern'
-                           , rAccept = accept'
-                           , rHost = host'
-                           , rUserAgent = user_agent' }
-              case lookup "QUERY" json of
-                Nothing -> Right rq
-                Just v -> Right rq { rQueryString = v }
-
+              Right $ def { rPath = path'
+                          , rMethod = method'
+                          , rVersion = version' 
+                          , rURI = uri'
+                          , rPattern = pattern'
+                          , rAccept = accept'
+                          , rHost = host'
+                          , rUserAgent = user_agent'
+                          , rQueryString = rst
+                          }
+  
 parse :: String -> Either String Request
 parse request = do
   case msplit request of
@@ -159,7 +158,7 @@ netStrings = do
   _ <- P.char ','
   rst <- P.many P.anyChar
   return (s,rst)
- where      
+ where
    number :: P.Parser Int
    number = do
      b <- P.many1 P.digit
@@ -228,7 +227,7 @@ connect mong = do
     Nothing -> do
       ctx <- Z.init 1
       pub <- Z.socket ctx Z.Pub
-      sub <- Z.socket ctx Z.Up
+      sub <- Z.socket ctx Z.Pull
       
       let uid = case mUUID mong of
             Just v -> v

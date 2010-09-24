@@ -1,24 +1,49 @@
-Name:                 web-mongrel2
-Version:              0.0.4
-Build-type:           Simple
-Synopsis:             Bindings for the Mongrel2 web server.
-
-License:              BSD3
-License-file:         LICENSE
-Cabal-Version:        >= 1.3
-Author:               Clint Moore
-Maintainer:           Clint Moore <cmoore@wamboli.com>
-Build-Depends:        base
-category:             Web
-homepage:             http://github.com/cmoore/haskell-mongrel2
-
-library
-  ghc-options: -Wall -Werror -O2 -threaded
-  build-depends:
-        base >= 4, data-default, json, MissingH, parsec, old-time,
-        system-uuid, zeromq-haskell, template-haskell, HStringTemplate,
-        bytestring
-  hs-source-dirs: src/
-  exposed-modules:
-        Web.Mongrel2
-        Web.Mongrel2.QQ
+name: web-mongrel2
+version: 0.0.4
+cabal-version: >=1.3
+build-type: Simple
+license: BSD3
+license-file: LICENSE
+copyright:
+maintainer: Clint Moore <cmoore@wamboli.com>
+build-depends: HStringTemplate -any, MissingH -any, base >=4,
+               bytestring -any, data-default -any, json -any, old-time -any,
+               parsec -any, system-uuid -any, template-haskell -any,
+               zeromq-haskell -any
+stability:
+homepage: http://github.com/cmoore/haskell-mongrel2
+package-url:
+bug-reports:
+synopsis: Bindings for the Mongrel2 web server.
+description: web-mongrel2 helps you write handlers for different frameworks.
+category: Web
+author: Clint Moore
+tested-with:
+data-files:
+data-dir: ""
+extra-source-files:
+extra-tmp-files:
+exposed-modules: Web.Mongrel2 Web.Mongrel2.QQ
+exposed: True
+buildable: True
+build-tools:
+cpp-options:
+cc-options:
+ld-options:
+pkgconfig-depends:
+frameworks:
+c-sources:
+extensions:
+extra-libraries:
+extra-lib-dirs:
+includes:
+install-includes:
+include-dirs:
+hs-source-dirs: src/
+other-modules:
+ghc-prof-options:
+ghc-shared-options:
+ghc-options: -Wall -Werror -O2 -threaded
+hugs-options:
+nhc98-options:
+jhc-options:
