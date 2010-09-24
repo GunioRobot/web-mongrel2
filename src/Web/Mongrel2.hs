@@ -16,7 +16,7 @@ import Data.Default
 
 
 -- | The Mongrel2 specific request headers.
-data RequestHeaders = RequestHeaders {
+data MongrelHeaders = MongrelHeaders {
       rhUUID :: String,
       rhID :: String,
       rhPath :: String
@@ -24,7 +24,8 @@ data RequestHeaders = RequestHeaders {
 
 -- | An incoming request from the server.
 data Request = Request {
-      rRequestHeaders :: RequestHeaders,
+      rMongrelHeaders :: MongrelHeaders,
+      rHeaders :: String,
       rPath :: String,
       rMethod :: String,
       rVersion :: String,
@@ -51,7 +52,7 @@ data Mongrel2 = Mongrel2 {
       mSubscribeS :: Maybe (Z.Socket Z.Pull),
       mContext :: Maybe Z.Context,
       mUUID :: Maybe String
-    }
+      }
 
 instance Default Mongrel2 where
   def = Mongrel2 {
@@ -63,8 +64,8 @@ instance Default Mongrel2 where
           mUUID = Nothing
         }
 
-instance Default RequestHeaders where
-  def = RequestHeaders {
+instance Default MongrelHeaders where
+  def = MongrelHeaders {
           rhUUID = def,
           rhID = def,
           rhPath = def
@@ -72,7 +73,8 @@ instance Default RequestHeaders where
 
 instance Default Request where
   def = Request {
-          rRequestHeaders = def,
+          rMongrelHeaders = def,
+          rHeaders = def,
           rPath = def,
           rMethod = def,
           rVersion = def,
@@ -113,7 +115,7 @@ request_env request_body =
     Right (a,rst) ->
       case decode a of
         Left c -> Left c
-        Right json -> 
+        Right json ->
           case ((,,,,,,,) <$> lookup "PATH" json
                 <*> lookup "METHOD" json
                 <*> lookup "VERSION" json
@@ -125,18 +127,31 @@ request_env request_body =
             Nothing -> Left "Failed an applicative lookup."
             Just ( path',method',version',uri',
                    pattern',accept',host',user_agent') -> do
-                                            
+              let b = maybe "" id $ lookup "Cookie" json
+
               Right $ def { rPath = path'
                           , rMethod = method'
                           , rVersion = version' 
                           , rURI = uri'
+                          , rHeaders = b
                           , rPattern = pattern'
                           , rAccept = accept'
                           , rHost = host'
                           , rUserAgent = user_agent'
-                          , rQueryString = rst
+                          , rQueryString = qstring rst
                           }
-  
+    where
+      qstr :: P.Parser String
+      qstr = do
+        n <- number
+        _ <- P.char ':'
+        x <- P.count n P.anyChar
+        return x
+      qstring :: String -> String
+      qstring fx = do
+        case P.parse qstr "" fx of
+          Left _ -> ""
+          Right y -> y
 parse :: String -> Either String Request
 parse request = do
   case msplit request of
@@ -147,7 +162,7 @@ parse request = do
         Right request_headers ->
           case request_env c of
             Left e -> Left e
-            Right req -> Right req { rRequestHeaders = request_headers }
+            Right req -> Right req { rMongrelHeaders = request_headers }
 
 -- Love to http://www.weavejester.com/node/7
 netStrings :: P.Parser (String,String)
@@ -158,13 +173,13 @@ netStrings = do
   _ <- P.char ','
   rst <- P.many P.anyChar
   return (s,rst)
- where
-   number :: P.Parser Int
-   number = do
-     b <- P.many1 P.digit
-     return $ read b
 
-preamble :: String -> Either String RequestHeaders
+number :: P.Parser Int
+number = do
+  b <- P.many1 P.digit
+  return $ read b
+
+preamble :: String -> Either String MongrelHeaders
 preamble b =
   case splitWs b of
     [uid,rid,path] -> Right $ def { rhUUID = uid,
