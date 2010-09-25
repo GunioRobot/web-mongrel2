@@ -1,6 +1,18 @@
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 
-module Web.Mongrel2  where
+module Web.Mongrel2 (
+  M2(..)
+  , Request(..)
+  , Response(..)
+  , MongrelHeaders(..)
+  , connect
+  , mpoll
+  , getRequest
+  , parse
+  , sendResponse
+  , recv
+  ) where
 import Web.Mongrel2.QQ
 
 import qualified Text.ParserCombinators.Parsec as P
@@ -13,7 +25,6 @@ import Prelude hiding (lookup)
 import Text.StringTemplate
 import Control.Applicative
 import Data.Default
-
 
 -- | The Mongrel2 specific request headers.
 data MongrelHeaders = MongrelHeaders {
@@ -36,16 +47,17 @@ data Request = Request {
       rQueryString :: String,
       rUserAgent :: String
     } deriving (Show)
-
+  
 -- | The response to send back.
 data Response = Response {
       respUUID :: String,
       respID :: String,
-      respBody :: String
-    }
+      respBody :: String,
+      respHeaders :: [(String,String)]
+    } deriving(Show)
 
 -- | The handlers internal data.
-data Mongrel2 = Mongrel2 {
+data M2 = M2 {
       mPublish :: String,
       mPublishS :: Maybe (Z.Socket Z.Pub),
       mSubscribe :: String,
@@ -54,8 +66,8 @@ data Mongrel2 = Mongrel2 {
       mUUID :: Maybe String
       }
 
-instance Default Mongrel2 where
-  def = Mongrel2 {
+instance Default M2 where
+  def = M2 {
           mPublish = def,
           mPublishS = Nothing,
           mSubscribe = def,
@@ -90,7 +102,8 @@ instance Default Response where
   def = Response {
           respBody = def,
           respID = def,
-          respUUID = def
+          respUUID = def,
+          respHeaders = def
         }
 
 -- | Lookup a key from the JSON-encoded request from Mongrel2
@@ -152,6 +165,7 @@ request_env request_body =
         case P.parse qstr "" fx of
           Left _ -> ""
           Right y -> y
+
 parse :: String -> Either String Request
 parse request = do
   case msplit request of
@@ -199,15 +213,16 @@ getRequest s = Z.receive s []
 sendResponse :: Z.Socket a -> Response -> IO ()
 sendResponse sock resp = do
   now <- getClockTime
-  let st = newSTMP respTemplate
-  let okfine = BS.pack $ render $
+  let okfine = BS.pack $
+               render $
+               setAttribute "headers" (respHeaders resp) $
                setManyAttrib [("uuid",(respUUID resp)),
                               ("size",(show $ length $ respID resp)),
                               ("id", (respID resp)),
                               ("now", (show now)),
                               ("clen", (show $ length $ respBody resp)),
                               ("sep", "\r\n"),
-                              ("body",(respBody resp))] st
+                              ("body",(respBody resp))] $ newSTMP respTemplate 
   Z.send sock okfine []
 
 recv :: (Request -> IO Response) -> Z.Socket a -> [Z.Poll] -> IO ()
@@ -227,14 +242,13 @@ recv handle pub ((Z.S s _):_ss) = do
                                       ("clen", (show $ length $ respBody rsp)),
                                       ("sep", "\r\n"),
                                       ("body",(respBody rsp))] st
-
          Z.send pub okfine []
 recv _ _ _ = return ()
 
 mpoll :: Z.Socket a -> IO [Z.Poll]
 mpoll sock = Z.poll [Z.S sock Z.In] 1000000
 
-connect :: Mongrel2 -> IO Mongrel2
+connect :: M2 -> IO M2
 connect mong = do
   case ((,) <$> mPublishS mong
         <*> mSubscribeS mong ) of
@@ -259,7 +273,7 @@ connect mong = do
                    mContext = Just ctx,
                    mUUID = Just uid
                  }
-        
+
 respTemplate :: String
 respTemplate = [$qq|$uuid$ $size$:$id$, HTTP/1.1 200 OK
 Content-Type: text/html; charset=UTF-8
@@ -267,7 +281,8 @@ Connection: close
 Content-Length: $clen$
 Server: Mongrel2
 Date: $now$
+$headers:{a|$a.0$:$a.1$
+}$
 
 $body$
 |]
-
