@@ -1,10 +1,9 @@
 {-# LANGUAGE QuasiQuotes #-}
-{-# LANGUAGE DeriveDataTypeable #-}
 
 module Web.Mongrel2 (
   M2(..)
-  , Request(..)
-  , Response(..)
+  , MRequest(..)
+  , MResponse(..)
   , MongrelHeaders(..)
   , connect
   , mpoll
@@ -25,6 +24,7 @@ import Prelude hiding (lookup)
 import Text.StringTemplate
 import Control.Applicative
 import Data.Default
+import Web.Encodings
 
 -- | The Mongrel2 specific request headers.
 data MongrelHeaders = MongrelHeaders {
@@ -34,7 +34,7 @@ data MongrelHeaders = MongrelHeaders {
     } deriving (Show)
 
 -- | An incoming request from the server.
-data Request = Request {
+data MRequest = MRequest {
       rMongrelHeaders :: MongrelHeaders,
       rHeaders :: String,
       rPath :: String,
@@ -49,7 +49,7 @@ data Request = Request {
     } deriving (Show)
   
 -- | The response to send back.
-data Response = Response {
+data MResponse = MResponse {
       respUUID :: String,
       respID :: String,
       respBody :: String,
@@ -64,7 +64,7 @@ data M2 = M2 {
       mSubscribeS :: Maybe (Z.Socket Z.Pull),
       mContext :: Maybe Z.Context,
       mUUID :: Maybe String
-      }
+    }
 
 instance Default M2 where
   def = M2 {
@@ -83,8 +83,8 @@ instance Default MongrelHeaders where
           rhPath = def
         }
 
-instance Default Request where
-  def = Request {
+instance Default MRequest where
+  def = MRequest {
           rMongrelHeaders = def,
           rHeaders = def,
           rPath = def,
@@ -98,8 +98,8 @@ instance Default Request where
           rUserAgent = def
         }
 
-instance Default Response where
-  def = Response {
+instance Default MResponse where
+  def = MResponse {
           respBody = def,
           respID = def,
           respUUID = def,
@@ -107,8 +107,8 @@ instance Default Response where
         }
 
 -- | Lookup a key from the JSON-encoded request from Mongrel2
-lookup :: String -> (JS.JSObject JS.JSValue) -> Maybe String
-lookup k bndl =
+mlookup :: String -> (JS.JSObject JS.JSValue) -> Maybe String
+mlookup k bndl =
   case JS.valFromObj k bndl of
     JS.Ok v -> Just $ JS.fromJSString v
     _ -> Nothing
@@ -121,7 +121,7 @@ decode inc =
     _ -> Left "failed on json decode."
 
 -- | Attempts to parse the entire request from Mongrel.
-request_env :: String -> Either String Request
+request_env :: String -> Either String MRequest
 request_env request_body =
   case P.parse netStrings "" request_body of
     Left _ -> Left "Failed P.parse"
@@ -129,18 +129,18 @@ request_env request_body =
       case decode a of
         Left c -> Left c
         Right json ->
-          case ((,,,,,,,) <$> lookup "PATH" json
-                <*> lookup "METHOD" json
-                <*> lookup "VERSION" json
-                <*> lookup "URI" json
-                <*> lookup "PATTERN" json
-                <*> lookup "Accept" json
-                <*> lookup "Host" json
-                <*> lookup "User-Agent" json) of
-            Nothing -> Left "Failed an applicative lookup."
+          case ((,,,,,,,) <$> mlookup "PATH" json
+                <*> mlookup "METHOD" json
+                <*> mlookup "VERSION" json
+                <*> mlookup "URI" json
+                <*> mlookup "PATTERN" json
+                <*> mlookup "Accept" json
+                <*> mlookup "Host" json
+                <*> mlookup "User-Agent" json) of
+            Nothing -> Left "Failed an applicative mlookup."
             Just ( path',method',version',uri',
                    pattern',accept',host',user_agent') -> do
-              let b = maybe "" id $ lookup "Cookie" json
+              let b = maybe "" id $ mlookup "Cookie" json
 
               Right $ def { rPath = path'
                           , rMethod = method'
@@ -166,7 +166,7 @@ request_env request_body =
           Left _ -> ""
           Right y -> y
 
-parse :: String -> Either String Request
+parse :: String -> Either String MRequest
 parse request = do
   case msplit request of
     Left a -> Left a
@@ -210,7 +210,7 @@ msplit a = case split " " a of
 getRequest :: Z.Socket a -> IO BS.ByteString
 getRequest s = Z.receive s []
 
-sendResponse :: Z.Socket a -> Response -> IO ()
+sendResponse :: Z.Socket a -> MResponse -> IO ()
 sendResponse sock resp = do
   now <- getClockTime
   let okfine = BS.pack $
@@ -225,7 +225,7 @@ sendResponse sock resp = do
                               ("body",(respBody resp))] $ newSTMP respTemplate 
   Z.send sock okfine []
 
-recv :: (Request -> IO Response) -> Z.Socket a -> [Z.Poll] -> IO ()
+recv :: (MRequest -> IO MResponse) -> Z.Socket a -> [Z.Poll] -> IO ()
 recv handle pub ((Z.S s _):_ss) = do
      req <- Z.receive s []
      case parse (BS.unpack req) of
