@@ -6,10 +6,10 @@ license: BSD3
 license-file: LICENSE
 copyright:
 maintainer: Clint Moore <cmoore@wamboli.com>
-build-depends: HStringTemplate -any, MissingH -any, base >=4,
+build-depends: MissingH -any, base >=4,
                bytestring -any, data-default -any, json -any, old-time -any,
-               parsec -any, system-uuid -any, template-haskell -any,
-               zeromq-haskell -any
+               parsec -any, system-uuid -any, mtl >= 2,
+               zeromq-haskell == 0.4.1, HStringTemplate -any, template-haskell -any
 stability:
 homepage: http://github.com/cmoore/haskell-mongrel2
 package-url:
@@ -23,7 +23,7 @@ data-files:
 data-dir: ""
 extra-source-files:
 extra-tmp-files:
-exposed-modules: Web.Mongrel2 Web.Mongrel2.QQ
+exposed-modules: Web.Mongrel2, Web.Mongrel2.QQ
 exposed: True
 buildable: True
 build-tools:

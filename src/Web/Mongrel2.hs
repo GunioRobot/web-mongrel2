@@ -1,3 +1,4 @@
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE QuasiQuotes #-}
 
 module Web.Mongrel2 (
@@ -12,19 +13,19 @@ module Web.Mongrel2 (
   , sendResponse
   , recv
   ) where
+
 import Web.Mongrel2.QQ
 
-import qualified Text.ParserCombinators.Parsec as P
-import Data.String.Utils (join,split,splitWs)
-import qualified Data.ByteString.Char8 as BS
-import System.Time (getClockTime)
-import qualified Text.JSON as JS
-import qualified System.ZMQ as Z
-import Prelude hiding (lookup)
 import Text.StringTemplate
 import Control.Applicative
+import qualified Data.ByteString.Char8 as BS
 import Data.Default
-import Web.Encodings
+import Data.String.Utils (join,split,splitWs)
+import Prelude hiding (lookup)
+import System.Time (getClockTime)
+import qualified System.ZMQ as Z
+import qualified Text.JSON as JS
+import qualified Text.ParserCombinators.Parsec as P
 
 -- | The Mongrel2 specific request headers.
 data MongrelHeaders = MongrelHeaders {

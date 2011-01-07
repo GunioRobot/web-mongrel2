@@ -1,6 +1,7 @@
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE QuasiQuotes #-}
 
-module Web.Mongrel2.QQ where
+module Web.Mongrel2.QQ (qq) where
 
 import Language.Haskell.TH.Quote
 import Language.Haskell.TH.Lib
