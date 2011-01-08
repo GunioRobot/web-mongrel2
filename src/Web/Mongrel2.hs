@@ -61,8 +61,8 @@ data MResponse = MResponse {
 data M2 = M2 {
       mPublish :: String,
       mPublishS :: Maybe (Z.Socket Z.Pub),
-      mSubscribe :: String,
-      mSubscribeS :: Maybe (Z.Socket Z.Pull),
+      mPull :: String,
+      mPullS :: Maybe (Z.Socket Z.Pull),
       mContext :: Maybe Z.Context,
       mUUID :: Maybe String
     }
@@ -71,8 +71,8 @@ instance Default M2 where
   def = M2 {
           mPublish = def,
           mPublishS = Nothing,
-          mSubscribe = def,
-          mSubscribeS = Nothing,
+          mPull = def,
+          mPullS = Nothing,
           mContext = Nothing,
           mUUID = Nothing
         }
@@ -135,9 +135,9 @@ request_env request_body =
                 <*> mlookup "VERSION" json
                 <*> mlookup "URI" json
                 <*> mlookup "PATTERN" json
-                <*> mlookup "Accept" json
-                <*> mlookup "Host" json
-                <*> mlookup "User-Agent" json) of
+                <*> mlookup "accept" json
+                <*> mlookup "host" json
+                <*> mlookup "user-agent" json) of
             Nothing -> Left "Failed an applicative mlookup."
             Just ( path',method',version',uri',
                    pattern',accept',host',user_agent') -> do
@@ -229,6 +229,7 @@ sendResponse sock resp = do
 recv :: (MRequest -> IO MResponse) -> Z.Socket a -> [Z.Poll] -> IO ()
 recv handle pub ((Z.S s _):_ss) = do
      req <- Z.receive s []
+     putStrLn $ "recv: " ++ (show req)
      case parse (BS.unpack req) of
        Left _err -> return ()
        Right rq -> do
@@ -247,30 +248,32 @@ recv handle pub ((Z.S s _):_ss) = do
 recv _ _ _ = return ()
 
 mpoll :: Z.Socket a -> IO [Z.Poll]
-mpoll sock = Z.poll [Z.S sock Z.In] 1000000
+mpoll sock = Z.poll [Z.S sock Z.InOut] 1000000
 
 connect :: M2 -> IO M2
 connect mong = do
-  case ((,) <$> mPublishS mong
-        <*> mSubscribeS mong ) of
+  putStrLn "connect: connecting."
+  case ((,)
+        <$> mPublishS mong
+        <*> mPullS mong ) of
     Just _ -> return mong
     Nothing -> do
       ctx <- Z.init 1
       pub <- Z.socket ctx Z.Pub
-      sub <- Z.socket ctx Z.Pull
+      pull <- Z.socket ctx Z.Pull
       
       let uid = case mUUID mong of
             Just v -> v
-            Nothing ->  "82209006-86FF-4982-B5EA-D1E29E55D481"
-      Z.connect sub $ mSubscribe mong
-      Z.setOption sub $ Z.Identity uid
+            Nothing -> "82209006-86GF-4982-B5EA-D1E29E55D481"
+            
+      Z.connect pull $ mPull mong
+      Z.setOption pull $ Z.Identity uid
       
       Z.connect pub $ mPublish mong
-      Z.setOption pub $ Z.Identity uid
 
       return $ mong {
                    mPublishS = Just pub,
-                   mSubscribeS = Just sub,
+                   mPullS = Just pull,
                    mContext = Just ctx,
                    mUUID = Just uid
                  }
