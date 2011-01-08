@@ -37,7 +37,7 @@ data MongrelHeaders = MongrelHeaders {
 -- | An incoming request from the server.
 data MRequest = MRequest {
       rMongrelHeaders :: MongrelHeaders,
-      rHeaders :: String,
+      rHeaders :: Maybe String,
       rPath :: String,
       rMethod :: String,
       rVersion :: String,
@@ -130,7 +130,8 @@ request_env request_body =
       case decode a of
         Left c -> Left c
         Right json ->
-          case ((,,,,,,,) <$> mlookup "PATH" json
+          case ((,,,,,,,)
+                <$> mlookup "PATH" json
                 <*> mlookup "METHOD" json
                 <*> mlookup "VERSION" json
                 <*> mlookup "URI" json
@@ -138,10 +139,10 @@ request_env request_body =
                 <*> mlookup "accept" json
                 <*> mlookup "host" json
                 <*> mlookup "user-agent" json) of
-            Nothing -> Left "Failed an applicative mlookup."
+            Nothing -> Left "Failed to parse request headers."
             Just ( path',method',version',uri',
                    pattern',accept',host',user_agent') -> do
-              let b = maybe "" id $ mlookup "Cookie" json
+              let b = mlookup "Cookie" json
 
               Right $ def { rPath = path'
                           , rMethod = method'
@@ -229,7 +230,6 @@ sendResponse sock resp = do
 recv :: (MRequest -> IO MResponse) -> Z.Socket a -> [Z.Poll] -> IO ()
 recv handle pub ((Z.S s _):_ss) = do
      req <- Z.receive s []
-     putStrLn $ "recv: " ++ (show req)
      case parse (BS.unpack req) of
        Left _err -> return ()
        Right rq -> do
@@ -252,7 +252,6 @@ mpoll sock = Z.poll [Z.S sock Z.InOut] 1000000
 
 connect :: M2 -> IO M2
 connect mong = do
-  putStrLn "connect: connecting."
   case ((,)
         <$> mPublishS mong
         <*> mPullS mong ) of
