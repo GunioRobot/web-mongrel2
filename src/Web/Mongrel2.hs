@@ -20,7 +20,7 @@ import Text.StringTemplate
 import Control.Applicative
 import qualified Data.ByteString.Char8 as BS
 import Data.Default
-import Data.String.Utils (join,split,splitWs)
+import Data.String.Utils (split,join)
 import Prelude hiding (lookup)
 import System.Time (getClockTime)
 import qualified System.ZMQ as Z
@@ -37,7 +37,7 @@ data MongrelHeaders = MongrelHeaders {
 -- | An incoming request from the server.
 data MRequest = MRequest {
       rMongrelHeaders :: MongrelHeaders,
-      rHeaders :: Maybe String,
+      rHeaders :: String,
       rPath :: String,
       rMethod :: String,
       rVersion :: String,
@@ -108,7 +108,7 @@ instance Default MResponse where
         }
 
 -- | Lookup a key from the JSON-encoded request from Mongrel2
-mlookup :: String -> (JS.JSObject JS.JSValue) -> Maybe String
+mlookup :: String -> JS.JSObject JS.JSValue -> Maybe String
 mlookup k bndl =
   case JS.valFromObj k bndl of
     JS.Ok v -> Just $ JS.fromJSString v
@@ -121,93 +121,66 @@ decode inc =
     JS.Ok (JS.JSObject b) -> Right b
     _ -> Left "failed on json decode."
 
--- | Attempts to parse the entire request from Mongrel.
+parse :: String -> Either String MRequest
+parse request =
+  case split " " request of
+    (nam:seqq:pat:blk) -> 
+      case request_env $ join " " blk of
+        Left e -> Left e
+        Right req ->
+          Right req { rMongrelHeaders = def { rhID = seqq
+                                            , rhUUID = nam
+                                            , rhPath = pat } }
+    _ -> Left "Unsupported or mis-parsed request."
+
 request_env :: String -> Either String MRequest
 request_env request_body =
-  case P.parse netStrings "" request_body of
-    Left _ -> Left "Failed P.parse"
-    Right (a,rst) ->
-      case decode a of
-        Left c -> Left c
-        Right json ->
-          case ((,,,,,,,)
-                <$> mlookup "PATH" json
-                <*> mlookup "METHOD" json
-                <*> mlookup "VERSION" json
-                <*> mlookup "URI" json
-                <*> mlookup "PATTERN" json
-                <*> mlookup "accept" json
-                <*> mlookup "host" json
-                <*> mlookup "user-agent" json) of
-            Nothing -> Left "Failed to parse request headers."
-            Just ( path',method',version',uri',
-                   pattern',accept',host',user_agent') -> do
-              let b = mlookup "Cookie" json
-
-              Right $ def { rPath = path'
-                          , rMethod = method'
-                          , rVersion = version' 
-                          , rURI = uri'
-                          , rHeaders = b
-                          , rPattern = pattern'
-                          , rAccept = accept'
-                          , rHost = host'
-                          , rUserAgent = user_agent'
-                          , rQueryString = qstring rst
-                          }
-    where
-      qstr :: P.Parser String
-      qstr = do
-        n <- number
-        _ <- P.char ':'
-        x <- P.count n P.anyChar
-        return x
-      qstring :: String -> String
-      qstring fx = do
-        case P.parse qstr "" fx of
-          Left _ -> ""
-          Right y -> y
-
-parse :: String -> Either String MRequest
-parse request = do
-  case msplit request of
-    Left a -> Left a
-    Right (b,c) ->
-      case preamble b of
-        Left d -> Left d
-        Right request_headers ->
-          case request_env c of
-            Left e -> Left e
-            Right req -> Right req { rMongrelHeaders = request_headers }
-
--- Love to http://www.weavejester.com/node/7
-netStrings :: P.Parser (String,String)
-netStrings = do
+     case P.parse qstr "" request_body of
+       Left x -> Left $ show x
+       Right (headers_,query_string_) ->
+         case decode headers_ of
+           Left c -> Left c
+           Right json ->
+             case ((,,,,,,,)
+                   <$> mlookup "PATH" json
+                   <*> mlookup "METHOD" json
+                   <*> mlookup "VERSION" json
+                   <*> mlookup "URI" json
+                   <*> mlookup "PATTERN" json
+                   <*> mlookup "accept" json
+                   <*> mlookup "host" json
+                   <*> mlookup "user-agent" json) of
+               Nothing -> Left "Failed to parse request headers."
+               Just ( path',method',version',uri',
+                      pattern',accept',host',user_agent') -> do
+                 let b = maybe "" id $ mlookup "Cookie" json
+                 Right $ def { rPath = path'
+                             , rMethod = method'
+                             , rVersion = version' 
+                             , rURI = uri'
+                             , rHeaders = b
+                             , rPattern = pattern'
+                             , rAccept = accept'
+                             , rHost = host'
+                             , rUserAgent = user_agent'
+                             , rQueryString = query_string_
+                             }
+qstr :: P.Parser (String,String)
+qstr = do
   n <- number
   _ <- P.char ':'
-  s <- P.count n P.anyChar
+  x <- P.count n P.anyChar
   _ <- P.char ','
-  rst <- P.many P.anyChar
-  return (s,rst)
+  nx <- number
+  _ <- P.char ':'
+  xy <- P.count nx P.anyChar
+  
+  return (x,xy)
 
 number :: P.Parser Int
 number = do
   b <- P.many1 P.digit
   return $ read b
-
-preamble :: String -> Either String MongrelHeaders
-preamble b =
-  case splitWs b of
-    [uid,rid,path] -> Right $ def { rhUUID = uid,
-                                    rhID = rid,
-                                    rhPath = path
-                                  }
-    _ -> Left "splitWs failed."
-  
-msplit :: String -> Either String (String,String)
-msplit a = case split " " a of
-             [] -> Left "failed on split."
-             b -> Right ((join " " $ take 3 b),(join " " $ drop 3 b))
 
 getRequest :: Z.Socket a -> IO BS.ByteString
 getRequest s = Z.receive s []
@@ -227,11 +200,12 @@ sendResponse sock resp = do
                               ("body",(respBody resp))] $ newSTMP respTemplate 
   Z.send sock okfine []
 
-recv :: (MRequest -> IO MResponse) -> Z.Socket a -> [Z.Poll] -> IO ()
+recv :: (MRequest -> IO MResponse) -> M2 -> [Z.Poll] -> IO ()
 recv handle pub ((Z.S s _):_ss) = do
      req <- Z.receive s []
      case parse (BS.unpack req) of
-       Left _err -> return ()
+       Left _err -> do
+         return ()
        Right rq -> do
          rsp <- handle rq
          now <- getClockTime
@@ -244,7 +218,12 @@ recv handle pub ((Z.S s _):_ss) = do
                                       ("clen", (show $ length $ respBody rsp)),
                                       ("sep", "\r\n"),
                                       ("body",(respBody rsp))] st
-         Z.send pub okfine []
+         case mPublishS pub of
+           Nothing ->
+             error "Need to connect the publish socket first!"
+           Just so -> do
+             Z.send so okfine []
+
 recv _ _ _ = return ()
 
 mpoll :: Z.Socket a -> IO [Z.Poll]
