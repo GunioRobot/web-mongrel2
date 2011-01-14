@@ -165,6 +165,7 @@ request_env request_body =
                              , rUserAgent = user_agent'
                              , rQueryString = query_string_
                              }
+
 qstr :: P.Parser (String,String)
 qstr = do
   n <- number
@@ -183,7 +184,8 @@ number = do
   return $ read b
 
 getRequest :: Z.Socket a -> IO BS.ByteString
-getRequest s = Z.receive s []
+getRequest s =
+  Z.receive s []
 
 sendResponse :: Z.Socket a -> MResponse -> IO ()
 sendResponse sock resp = do
