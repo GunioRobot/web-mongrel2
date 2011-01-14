@@ -14,8 +14,6 @@ module Web.Mongrel2 (
   , recv
   ) where
 
-import Web.Mongrel2.QQ
-
 import Text.StringTemplate
 import Control.Applicative
 import qualified Data.ByteString.Char8 as BS
@@ -26,6 +24,8 @@ import System.Time (getClockTime)
 import qualified System.ZMQ as Z
 import qualified Text.JSON as JS
 import qualified Text.ParserCombinators.Parsec as P
+import Data.FileEmbed
+import qualified Data.ByteString as B
 
 -- | The Mongrel2 specific request headers.
 data MongrelHeaders = MongrelHeaders {
@@ -188,6 +188,7 @@ getRequest s = Z.receive s []
 sendResponse :: Z.Socket a -> MResponse -> IO ()
 sendResponse sock resp = do
   now <- getClockTime
+  let template = BS.unpack respTemplate :: String
   let okfine = BS.pack $
                render $
                setAttribute "headers" (respHeaders resp) $
@@ -197,7 +198,7 @@ sendResponse sock resp = do
                               ("now", (show now)),
                               ("clen", (show $ length $ respBody resp)),
                               ("sep", "\r\n"),
-                              ("body",(respBody resp))] $ newSTMP respTemplate 
+                              ("body",(respBody resp))] $ newSTMP template
   Z.send sock okfine []
 
 recv :: (MRequest -> IO MResponse) -> M2 -> [Z.Poll] -> IO ()
@@ -209,7 +210,7 @@ recv handle pub ((Z.S s _):_ss) = do
        Right rq -> do
          rsp <- handle rq
          now <- getClockTime
-         let st = newSTMP respTemplate
+         let st = newSTMP $ BS.unpack respTemplate
          let okfine = BS.pack $ render $
                        setManyAttrib [("uuid",(respUUID rsp)),
                                       ("size",(show $ length $ respID rsp)),
@@ -256,15 +257,5 @@ connect mong = do
                    mUUID = Just uid
                  }
 
-respTemplate :: String
-respTemplate = [$qq|$uuid$ $size$:$id$, HTTP/1.1 200 OK
-Content-Type: text/html; charset=UTF-8
-Connection: close
-Content-Length: $clen$
-Server: Mongrel2
-Date: $now$
-$headers:{a|$a.0$:$a.1$
-}$
-
-$body$
-|]
+respTemplate :: B.ByteString
+respTemplate = $(embedFile "templates/rquio.st")
