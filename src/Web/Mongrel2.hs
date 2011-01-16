@@ -14,6 +14,7 @@ module Web.Mongrel2 (
   , recv
   ) where
 
+import Text.JSON
 import Text.StringTemplate
 import Control.Applicative
 import qualified Data.ByteString.Char8 as BS
@@ -26,6 +27,7 @@ import qualified Text.JSON as JS
 import qualified Text.ParserCombinators.Parsec as P
 import Data.FileEmbed
 import qualified Data.ByteString as B
+import Char (toLower)
 
 -- | The Mongrel2 specific request headers.
 data MongrelHeaders = MongrelHeaders {
@@ -37,6 +39,7 @@ data MongrelHeaders = MongrelHeaders {
 -- | An incoming request from the server.
 data MRequest = MRequest {
       rMongrelHeaders :: MongrelHeaders,
+      rRawHeaders :: Maybe (JSObject JSValue),
       rHeaders :: String,
       rPath :: String,
       rMethod :: String,
@@ -78,41 +81,44 @@ instance Default M2 where
         }
 
 instance Default MongrelHeaders where
-  def = MongrelHeaders {
-          rhUUID = def,
-          rhID = def,
-          rhPath = def
-        }
+  def = MongrelHeaders { rhUUID = def,
+                         rhID = def,
+                         rhPath = def
+                       }
 
 instance Default MRequest where
-  def = MRequest {
-          rMongrelHeaders = def,
-          rHeaders = def,
-          rPath = def,
-          rMethod = def,
-          rVersion = def,
-          rURI = def,
-          rPattern = def,
-          rAccept = def,
-          rHost = def,
-          rQueryString = def,
-          rUserAgent = def
-        }
+  def = MRequest { rMongrelHeaders = def,
+                   rRawHeaders = def,
+                   rHeaders = def,
+                   rPath = def,
+                   rMethod = def,
+                   rVersion = def,
+                   rURI = def,
+                   rPattern = def,
+                   rAccept = def,
+                   rHost = def,
+                   rQueryString = def,
+                   rUserAgent = def
+                 }
 
 instance Default MResponse where
-  def = MResponse {
-          respBody = def,
-          respID = def,
-          respUUID = def,
-          respHeaders = def
-        }
+  def = MResponse { respBody = def,
+                    respID = def,
+                    respUUID = def,
+                    respHeaders = def
+                  }
 
 -- | Lookup a key from the JSON-encoded request from Mongrel2
+
 mlookup :: String -> JS.JSObject JS.JSValue -> Maybe String
-mlookup k bndl =
-  case JS.valFromObj k bndl of
-    JS.Ok v -> Just $ JS.fromJSString v
-    _ -> Nothing
+mlookup key bndl =
+  mlookup' key bndl <|> mlookup' (map toLower key) bndl
+ where
+   mlookup' :: String -> JS.JSObject JS.JSValue -> Maybe String
+   mlookup' k b = 
+     case JS.valFromObj k b of
+       JS.Ok v -> Just $ JS.fromJSString v
+       _ -> Nothing
 
 -- | Attempt to parse the JSON-encoded request body from Mongrel2
 decode :: String -> Either String ( JS.JSObject JS.JSValue )
@@ -124,7 +130,7 @@ decode inc =
 parse :: String -> Either String MRequest
 parse request =
   case split " " request of
-    (nam:seqq:pat:blk) -> 
+    (nam:seqq:pat:blk) ->
       case request_env $ join " " blk of
         Left e -> Left e
         Right req ->
@@ -138,18 +144,19 @@ request_env request_body =
      case P.parse qstr "" request_body of
        Left x -> Left $ show x
        Right (headers_,query_string_) ->
-         case decode headers_ of
-           Left c -> Left c
-           Right json ->
+         case JS.decode headers_ of
+           JS.Ok (JS.JSObject json) -> do
+             -- let keys = map fst $ fromJSObject json
+             
              case ((,,,,,,,)
                    <$> mlookup "PATH" json
                    <*> mlookup "METHOD" json
                    <*> mlookup "VERSION" json
                    <*> mlookup "URI" json
                    <*> mlookup "PATTERN" json
-                   <*> mlookup "accept" json
-                   <*> mlookup "host" json
-                   <*> mlookup "user-agent" json) of
+                   <*> mlookup "Accept" json
+                   <*> mlookup "Host" json
+                   <*> mlookup "User-Agent" json) of
                Nothing -> Left "Failed to parse request headers."
                Just ( path',method',version',uri',
                       pattern',accept',host',user_agent') -> do
@@ -165,6 +172,7 @@ request_env request_body =
                              , rUserAgent = user_agent'
                              , rQueryString = query_string_
                              }
+           _ -> Left "error parsing the headers."
 
 qstr :: P.Parser (String,String)
 qstr = do
@@ -206,6 +214,7 @@ sendResponse sock resp = do
 recv :: (MRequest -> IO MResponse) -> M2 -> [Z.Poll] -> IO ()
 recv handle pub ((Z.S s _):_ss) = do
      req <- Z.receive s []
+     putStrLn $ "R: " ++ (show req)
      case parse (BS.unpack req) of
        Left _err -> do
          return ()
