@@ -14,20 +14,20 @@ module Web.Mongrel2 (
   , recv
   ) where
 
-import Text.JSON
-import Text.StringTemplate
+import Char (toLower)
 import Control.Applicative
+import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as BS
 import Data.Default
+import Data.FileEmbed
 import Data.String.Utils (split,join)
 import Prelude hiding (lookup)
 import System.Time (getClockTime)
 import qualified System.ZMQ as Z
+import Text.JSON
 import qualified Text.JSON as JS
 import qualified Text.ParserCombinators.Parsec as P
-import Data.FileEmbed
-import qualified Data.ByteString as B
-import Char (toLower)
+import Text.StringTemplate
 
 -- | The Mongrel2 specific request headers.
 data MongrelHeaders = MongrelHeaders {
@@ -40,7 +40,7 @@ data MongrelHeaders = MongrelHeaders {
 data MRequest = MRequest {
       rMongrelHeaders :: MongrelHeaders,
       rRawHeaders :: Maybe (JSObject JSValue),
-      rHeaders :: String,
+      rHeaders :: [(String,String)],
       rPath :: String,
       rMethod :: String,
       rVersion :: String,
@@ -141,39 +141,31 @@ parse request =
 
 request_env :: String -> Either String MRequest
 request_env request_body =
-     case P.parse qstr "" request_body of
-       Left x -> Left $ show x
-       Right (headers_,query_string_) ->
-         case JS.decode headers_ of
-           JS.Ok (JS.JSObject json) -> do
-             -- let keys = map fst $ fromJSObject json
-             
-             case ((,,,,,,,)
-                   <$> mlookup "PATH" json
-                   <*> mlookup "METHOD" json
-                   <*> mlookup "VERSION" json
-                   <*> mlookup "URI" json
-                   <*> mlookup "PATTERN" json
-                   <*> mlookup "Accept" json
-                   <*> mlookup "Host" json
-                   <*> mlookup "User-Agent" json) of
-               Nothing -> Left "Failed to parse request headers."
-               Just ( path',method',version',uri',
-                      pattern',accept',host',user_agent') -> do
-                 let b = maybe "" id $ mlookup "Cookie" json
-                 Right $ def { rPath = path'
-                             , rMethod = method'
-                             , rVersion = version' 
-                             , rURI = uri'
-                             , rHeaders = b
-                             , rPattern = pattern'
-                             , rAccept = accept'
-                             , rHost = host'
-                             , rUserAgent = user_agent'
-                             , rQueryString = query_string_
-                             }
-           _ -> Left "error parsing the headers."
-
+  case P.parse qstr "" request_body of
+    Left x -> Left $ show x
+    Right (headers_,query_string_) ->
+      case JS.decode headers_ of
+        JS.Ok (JS.JSObject json) -> do
+          let unjs =
+                map (\(x,JSString y) -> do
+                      [(x,fromJSString y)]
+                    ) $ fromJSObject json
+          Right $ def { rPath = ml "PATH" json
+                      , rMethod = ml "METHOD" json
+                      , rVersion = ml "VERSION" json
+                      , rURI = ml "URI" json
+                      , rHeaders = concat unjs
+                      , rPattern = ml "PATTERN" json
+                      , rAccept = ml "Accept" json
+                      , rHost = ml "Host" json
+                      , rUserAgent = ml "User-Agent" json
+                      , rQueryString = query_string_
+                      }
+        _ -> Left "error parsing the headers."
+ where
+  ml :: String -> JS.JSObject JS.JSValue -> String
+  ml k b = maybe "" id $ mlookup k b
+  
 qstr :: P.Parser (String,String)
 qstr = do
   n <- number
