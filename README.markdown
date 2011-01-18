@@ -1,7 +1,7 @@
 
 web-mongrel2 is a library to simplify writing handlers for Mongrel2.
 
-The simplest example is below which simply displays the request from Mongrel2 and replies with an empty response.
+The example below displays the request from Mongrel2 and replies with an empty response.
 
 
     module Main where
