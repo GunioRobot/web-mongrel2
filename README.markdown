@@ -1,13 +1,13 @@
 
-h3. web-mongrel2
+* web-mongrel2
 
 This library attempts to abstract away some the details of connecting Haskell web frameworks to Mongrel2.
 
-h3. Status
+* Status
 
 Gearing up for a usable release.
 
-h3. Examples
+* Examples
 
 
     module Main where
