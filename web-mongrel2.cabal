@@ -5,7 +5,7 @@ license: BSD3
 license-file: LICENSE
 copyright:
 maintainer: Clint Moore <cmoore@wamboli.com>
-build-depends: MissingH -any, base >=4,
+build-depends: MissingH -any, base >=4, groom,
                bytestring -any, data-default -any, json -any, file-embed,
                parsec -any, system-uuid -any, mtl >= 2, old-time, haskell98,
                zeromq-haskell == 0.4.1, HStringTemplate -any, template-haskell -any

@@ -28,6 +28,7 @@ import Text.JSON
 import qualified Text.JSON as JS
 import qualified Text.ParserCombinators.Parsec as P
 import Text.StringTemplate
+import Text.Groom
 
 -- | The Mongrel2 specific request headers.
 data MongrelHeaders = MongrelHeaders {
@@ -39,7 +40,6 @@ data MongrelHeaders = MongrelHeaders {
 -- | An incoming request from the server.
 data MRequest = MRequest {
       rMongrelHeaders :: MongrelHeaders,
-      rRawHeaders :: Maybe (JSObject JSValue),
       rHeaders :: [(String,String)],
       rPath :: String,
       rMethod :: String,
@@ -88,7 +88,6 @@ instance Default MongrelHeaders where
 
 instance Default MRequest where
   def = MRequest { rMongrelHeaders = def,
-                   rRawHeaders = def,
                    rHeaders = def,
                    rPath = def,
                    rMethod = def,
@@ -146,21 +145,23 @@ request_env request_body =
     Right (headers_,query_string_) ->
       case JS.decode headers_ of
         JS.Ok (JS.JSObject json) -> do
-          let unjs =
+          let unjs = concat $
                 map (\(x,JSString y) -> do
                       [(x,fromJSString y)]
                     ) $ fromJSObject json
+          
           Right $ def { rPath = ml "PATH" json
                       , rMethod = ml "METHOD" json
                       , rVersion = ml "VERSION" json
                       , rURI = ml "URI" json
-                      , rHeaders = concat unjs
+                      , rHeaders = unjs
                       , rPattern = ml "PATTERN" json
                       , rAccept = ml "Accept" json
                       , rHost = ml "Host" json
                       , rUserAgent = ml "User-Agent" json
                       , rQueryString = query_string_
                       }
+            
         _ -> Left "error parsing the headers."
  where
   ml :: String -> JS.JSObject JS.JSValue -> String
@@ -206,12 +207,14 @@ sendResponse sock resp = do
 recv :: (MRequest -> IO MResponse) -> M2 -> [Z.Poll] -> IO ()
 recv handle pub ((Z.S s _):_ss) = do
      req <- Z.receive s []
-     putStrLn $ "R: " ++ (show req)
+     putStrLn $ "\nClient -> WM2: " ++ (groom req)
      case parse (BS.unpack req) of
        Left _err -> do
          return ()
        Right rq -> do
+         putStrLn $ "\nWM2 -> Handler: " ++ (groom rq)
          rsp <- handle rq
+         putStrLn $ "\nHandler -> WM2: " ++ (groom rsp)
          now <- getClockTime
          let st = newSTMP $ BS.unpack respTemplate
          let okfine = BS.pack $ render $
@@ -261,4 +264,4 @@ connect mong = do
                  }
 
 respTemplate :: B.ByteString
-respTemplate = $(embedFile "templates/rquio.st")
+respTemplate = $(embedFile "/home/cmoore/clones/web-mongrel2/templates/rquio.st")
