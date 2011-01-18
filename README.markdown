@@ -1,5 +1,5 @@
 
-web-mongrel2 is a simple library to simplify writing writing handlers for Mongrel2.
+web-mongrel2 is a library to simplify writing handlers for Mongrel2.
 
 The simplest example is below which simply displays the request from Mongrel2 and replies with an empty response.
 
