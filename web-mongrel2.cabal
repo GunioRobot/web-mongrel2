@@ -9,7 +9,7 @@ build-depends: MissingH -any, base >=4, groom, bytestring -any,
                system-uuid -any, mtl >= 2, old-time, haskell98,
                zeromq-haskell == 0.4.1, template-haskell -any,
                HStringTemplate
-stability:
+stability: unstable
 homepage: http://github.com/cmoore/haskell-mongrel2
 synopsis: Bindings for the Mongrel2 web server.
 description: web-mongrel2 helps you write handlers for different frameworks.
@@ -18,5 +18,5 @@ author: Clint Moore
 exposed-modules: Web.Mongrel2, Web.Mongrel2.QQ
 exposed: True
 buildable: True
-ghc-options: -Wall -Werror -O2 -threaded
+ghc-options: -Wall
 hs-source-dirs: src
