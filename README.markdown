@@ -1,13 +1,7 @@
 
-* web-mongrel2
+web-mongrel2 is a simple library to simplify writing writing handlers for Mongrel2.
 
-This library attempts to abstract away some the details of connecting Haskell web frameworks to Mongrel2.
-
-* Status
-
-Gearing up for a usable release.
-
-* Examples
+The simplest example is below which simply displays the request from Mongrel2 and replies with an empty response.
 
 
     module Main where
