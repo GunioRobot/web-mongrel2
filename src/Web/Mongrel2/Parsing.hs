@@ -1,5 +1,5 @@
 
-module Web.Mongrel2.Parsing where
+module Web.Mongrel2.Parsing (m2_parse) where
 
 import Control.Applicative hiding (many)
 import Text.ParserCombinators.Parsec hiding ((<|>))
