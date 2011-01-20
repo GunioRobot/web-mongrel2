@@ -1,7 +1,8 @@
 
 module Web.Mongrel2.Parsing where
 
-import Text.ParserCombinators.Parsec
+import Control.Applicative hiding (many)
+import Text.ParserCombinators.Parsec hiding ((<|>))
 import Data.Default
 import Text.JSON
 import Char (toLower)
@@ -19,17 +20,18 @@ m2_parse request =
                              , header_uuid = nam
                              , header_path = pat } }
     _ -> Left "Unsupported or mis-parsed request."
- where
+ where   
    request_split :: Parser (String,String,String,String)
    request_split = do
-     name <- string $ noneOf " "
-     char ' '
-     sequence <- string $ noneOf " "
-     char ' '
-     path <- string $ noneOf " "
-     char ' '
-     rest <- string
-     return (name,sequence,path,rest)
+     name <- many $ noneOf " "
+     _ <- char ' '
+     sq <- many $ noneOf " "
+     _ <- char ' '
+     path <- many $ noneOf " "
+     _ <- char ' '
+     rest <- many anyChar
+     
+     return (name,sq,path,rest)
      
    request_env :: String -> Either String Request
    request_env request_body =

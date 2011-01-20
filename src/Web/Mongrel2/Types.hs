@@ -10,7 +10,7 @@ data MongrelHeaders = MongrelHeaders {
   header_id :: String,
   header_path :: String
   } deriving (Show)
-                        
+
 -- | An incoming request from the server.
 data Request = Request {
   request_mongrel_headers :: MongrelHeaders,
@@ -32,7 +32,10 @@ data Response = Response {
   response_id :: String,
   response_body :: String,
   response_headers :: [(String,String)],
-  response_status :: String
+  response_status :: String,
+  response_charset :: String,
+  response_content_type :: String,
+  response_target :: Maybe String
   } deriving(Show)
 
 -- | Internal connection data.
@@ -79,9 +82,12 @@ instance Default Request where
 
 instance Default Response where
   def = Response {
+    response_charset = "UTF-8",
+    response_content_type = "text/plain",
     response_body = def,
     response_id = def,
     response_uuid = def,
     response_headers = def,
-    response_status = def
+    response_status = def,
+    response_target = Nothing
     }

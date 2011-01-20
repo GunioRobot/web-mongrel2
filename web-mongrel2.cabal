@@ -4,7 +4,7 @@ build-type: Simple
 license: BSD3
 license-file: LICENSE
 maintainer: Clint Moore <cmoore@wamboli.com>
-build-depends: MissingH -any, base >=4, groom, bytestring -any,
+build-depends: base >=4, groom, bytestring -any,
                data-default -any, json -any, parsec -any,
                system-uuid -any, mtl >= 2, old-time, haskell98,
                zeromq-haskell == 0.4.1, template-haskell -any,
@@ -15,7 +15,11 @@ synopsis: Bindings for the Mongrel2 web server.
 description: web-mongrel2 helps you write handlers for different frameworks.
 category: Web
 author: Clint Moore
-exposed-modules: Web.Mongrel2, Web.Mongrel2.QQ
+exposed-modules:
+        Web.Mongrel2,
+        Web.Mongrel2.QQ,
+        Web.Mongrel2.Types,
+        Web.Mongrel2.Parsing
 exposed: True
 buildable: True
 ghc-options: -Wall
