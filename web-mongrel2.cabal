@@ -1,10 +1,10 @@
 name: web-mongrel2
-version: 0.0.9
+version: 0.0.2
 build-type: Simple
 license: BSD3
 license-file: LICENSE
 maintainer: Clint Moore <cmoore@wamboli.com>
-build-depends: base >=4, groom, bytestring -any,
+build-depends: base >=4, bytestring -any,
                data-default -any, json -any, parsec -any,
                system-uuid -any, mtl >= 2, old-time, haskell98,
                zeromq-haskell == 0.4.1, template-haskell -any,

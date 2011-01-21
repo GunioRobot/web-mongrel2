@@ -13,9 +13,11 @@ data MongrelHeaders = MongrelHeaders {
 
 -- | An incoming request from the server.
 data Request = Request {
-  request_mongrel_headers :: MongrelHeaders,
-  request_headers :: [(String,String)],
+  request_uuid :: String,
   request_path :: String,
+  request_id :: String,
+  
+  request_headers :: [(String,String)],
   request_method :: String,
   request_version :: String,
   request_uri :: String,
@@ -30,6 +32,8 @@ data Request = Request {
 data Response = Response {
   response_uuid :: String,
   response_id :: String,
+  response_path :: String,
+  
   response_body :: String,
   response_headers :: [(String,String)],
   response_status :: String,
@@ -62,14 +66,16 @@ instance Default MongrelHeaders where
   def = MongrelHeaders { 
     header_uuid = def,
     header_id = def,
-    header_path = def
+    header_path = "/"
     }
 
 instance Default Request where
   def = Request {
-    request_mongrel_headers = def,
+    request_uuid = def,
+    request_id = def,
+    request_path = "/",
+    
     request_headers = def,
-    request_path = def,
     request_method = def,
     request_version = def,
     request_uri = def,
@@ -82,11 +88,13 @@ instance Default Request where
 
 instance Default Response where
   def = Response {
+    response_id = def,
+    response_uuid = def,
+    response_path = "/",
+    
     response_charset = "UTF-8",
     response_content_type = "text/plain",
     response_body = def,
-    response_id = def,
-    response_uuid = def,
     response_headers = def,
     response_status = def,
     response_target = Nothing

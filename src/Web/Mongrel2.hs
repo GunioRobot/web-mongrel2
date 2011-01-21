@@ -9,6 +9,7 @@ module Web.Mongrel2 (
   , connect
   , poll
   , recv
+  , defaultr
   ) where
 
 import Control.Applicative
@@ -22,15 +23,28 @@ import Web.Mongrel2.Types
 import Web.Mongrel2.Parsing
 import Web.Mongrel2.QQ (qq)
 
+import Data.Default (def)
+
+defaultr :: Request -> Response
+defaultr req =
+  def { response_uuid = request_uuid req
+      , response_id = request_id req
+      , response_path = request_path req }
+  
+-- Request
+-- UUID ID PATH SIZE:HEADERS,SIZE:BODY
+
+-- Response
+-- UUID SIZE:ID ID ID, BODY
 send_response :: Z.Socket a -> Response -> IO ()
 send_response sock resp = do
   now <- getClockTime
-  let okfine =
-        BS.pack $ render $
+  let reply = 
+        render $
         setAttribute "headers" (response_headers resp) $
-        setManyAttrib [("uuid",(response_uuid resp)),
-                       ("size",(show $ length $ response_body resp)),
-                       ("id", (response_id resp)),
+        setManyAttrib [("id", (response_id resp)),
+                       ("uuid", (response_uuid resp)),
+                       ("idl", (show $ length $ response_id resp)),
                        ("now", (show now)),
                        ("clen", (show $ length $ response_body resp)),
                        ("sep", "\r\n"),
@@ -39,8 +53,7 @@ send_response sock resp = do
                        ("charset", response_charset resp),
                        ("body",(response_body resp))] $
         newSTMP response_template
-  putStrLn $ "OUT:\n" ++ (show okfine)
-  Z.send sock okfine []
+  Z.send sock (BS.pack reply) []
 
 recv :: (Request -> IO Response) -> M2 -> [Z.Poll] -> IO ()
 recv handle pub ((Z.S s _):_ss) = do
@@ -85,8 +98,7 @@ connect mong = do
              }
 
 response_template :: String
-response_template = 
-  [$qq|$uuid$ $size$:$id$, HTTP/1.1 $status$ OK
+response_template = [$qq|$uuid$ $idl$:$id$, HTTP/1.1 $status$ OK
 Content-Type: $contenttype$; charset=$charset$
 Connection: close
 Content-Length: $clen$

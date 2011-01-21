@@ -11,27 +11,26 @@ import Web.Mongrel2.Types
 m2_parse :: String -> Either String Request
 m2_parse request =
   case parse request_split "" request of
-    Right (nam,seqq,pat,blk) ->
+    Right (uui,seqq,pat,blk) ->
       case request_env blk of
         Left e -> Left e
         Right req ->
-          Right req { request_mongrel_headers =
-                         def { header_id = seqq
-                             , header_uuid = nam
-                             , header_path = pat } }
-    _ -> Left "Unsupported or mis-parsed request."
+          Right req { request_uuid = uui
+                    , request_id = seqq
+                    , request_path = pat }
+    Left a -> Left $ show a
  where   
    request_split :: Parser (String,String,String,String)
    request_split = do
-     name <- many $ noneOf " "
-     _ <- char ' '
-     sq <- many $ noneOf " "
-     _ <- char ' '
+     uui <- many $ noneOf " "
+     _ <- space
+     iid <- many $ noneOf " "
+     _ <- space
      path <- many $ noneOf " "
-     _ <- char ' '
-     rest <- many anyChar
+     _ <- space
+     rest <- many anyToken
      
-     return (name,sq,path,rest)
+     return (uui,iid,path,rest)
      
    request_env :: String -> Either String Request
    request_env request_body =
