@@ -19,9 +19,9 @@ import System.Time (getClockTime)
 import qualified System.ZMQ as Z
 import Text.StringTemplate
 
-import Web.Mongrel2.Types
 import Web.Mongrel2.Parsing
 import Web.Mongrel2.QQ (qq)
+import Web.Mongrel2.Types
 
 import Data.Default (def)
 
@@ -39,21 +39,19 @@ defaultr req =
 send_response :: Z.Socket a -> Response -> IO ()
 send_response sock resp = do
   now <- getClockTime
-  let reply = 
-        render $
-        setAttribute "headers" (response_headers resp) $
-        setManyAttrib [("id", (response_id resp)),
-                       ("uuid", (response_uuid resp)),
-                       ("idl", (show $ length $ response_id resp)),
-                       ("now", (show now)),
-                       ("clen", (show $ length $ response_body resp)),
-                       ("sep", "\r\n"),
-                       ("status", response_status resp),
-                       ("contenttype", response_content_type resp),
-                       ("charset", response_charset resp),
-                       ("body",(response_body resp))] $
-        newSTMP response_template
-  Z.send sock (BS.pack reply) []
+  Z.send sock (BS.pack $ render $
+    setAttribute "headers" (response_headers resp) $
+    setManyAttrib [("id", (response_id resp)),
+                   ("uuid", (response_uuid resp)),
+                   ("idl", (show $ length $ response_id resp)),
+                   ("now", (show now)),
+                   ("clen", (show $ length $ response_body resp)),
+                   ("sep", "\r\n"),
+                   ("status", response_status resp),
+                   ("contenttype", response_content_type resp),
+                   ("charset", response_charset resp),
+                   ("body",(response_body resp))] $
+    newSTMP response_template) []
 
 recv :: (Request -> IO Response) -> M2 -> [Z.Poll] -> IO ()
 recv handle pub ((Z.S s _):_ss) = do
@@ -68,7 +66,8 @@ recv handle pub ((Z.S s _):_ss) = do
 recv _ _ _ = return ()
 
 poll :: Z.Socket a -> IO [Z.Poll]
-poll sock = Z.poll [Z.S sock Z.InOut] 1000000
+poll sock =
+  Z.poll [Z.S sock Z.InOut] 1000000
 
 connect :: M2 -> IO M2
 connect mong = do

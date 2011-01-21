@@ -79,6 +79,7 @@ number = do
 
 mlookup :: String -> JSObject JSValue -> Maybe String
 mlookup key bndl =
+  -- TODO: Not so sure that the alternate toLower is needed.
   mlookup' key bndl <|> mlookup' (map toLower key) bndl
  where
    mlookup' :: String -> JSObject JSValue -> Maybe String
