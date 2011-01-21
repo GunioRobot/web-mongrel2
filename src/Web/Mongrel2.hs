@@ -12,6 +12,8 @@
 -- A simple abstraction for applications to use Mongrel2.
 -- Mongrel2 is simple and easy to use, and hopefully others
 -- find this module almost as easy.
+-- 
+-- Please direct any questions or comments, and /especially/ criticism to my email.  This is my first release to hackage and I'm very interested in how I can improve.
 --
 -- > require Web.Mongrel2
 -- > require Control.Monad (forever)
@@ -94,6 +96,7 @@ send_response sock resp = do
 recv :: (Request -> IO Response) -> M2 -> [Z.Poll] -> IO ()
 recv handle pub ((Z.S s _):_ss) = do
   req <- Z.receive s []
+  putStrLn $ "REQ:\n" ++ (show req)
   case m2_parse (BS.unpack req) of
     Left err -> error err
     Right rq -> do
