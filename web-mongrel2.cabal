@@ -16,7 +16,10 @@ description: web-mongrel2 helps you write handlers for different frameworks.
 category: Web
 author: Clint Moore
 exposed-modules:
-        Web.Mongrel2
+        Web.Mongrel2,
+        Web.Mongrel2.QQ,
+        Web.Mongrel2.Types,
+        Web.Mongrel2.Parsing
 exposed: True
 buildable: True
 ghc-options: -Wall
