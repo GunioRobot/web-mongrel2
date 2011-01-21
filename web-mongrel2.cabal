@@ -22,7 +22,7 @@ build-depends:
 stability: unstable
 homepage: http://github.com/cmoore/web-mongrel2
 synopsis: Bindings for the Mongrel2 web server.
-description: web-mongrel2 helps you write handlers for different frameworks.
+description: A simple handler API for Mongrel2.
 category: Web
 author: Clint Moore
 exposed-modules:
