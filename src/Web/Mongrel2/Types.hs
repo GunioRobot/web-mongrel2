@@ -4,13 +4,6 @@ module Web.Mongrel2.Types where
 import Data.Default
 import System.ZMQ
 
--- | The Mongrel2 specific request headers.
-data MongrelHeaders = MongrelHeaders {
-  header_uuid :: String,
-  header_id :: String,
-  header_path :: String
-  } deriving (Show)
-
 -- | An incoming request from the server.
 data Request = Request {
   request_uuid :: String,
@@ -60,13 +53,6 @@ instance Default M2 where
     m2_pull_socket = Nothing,
     m2_context = Nothing,
     m2_uuid = Nothing
-    }
-
-instance Default MongrelHeaders where
-  def = MongrelHeaders { 
-    header_uuid = def,
-    header_id = def,
-    header_path = "/"
     }
 
 instance Default Request where

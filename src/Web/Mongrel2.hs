@@ -1,14 +1,48 @@
-
 {-# LANGUAGE QuasiQuotes #-}
+
+-- |
+-- Module: Web.Mongrel2
+-- Copyright: (c) 2011 Clint Moore
+-- License: BSD-style
+-- Maintainer: cmoore@wamboli.com
+-- Stability: experimental
+-- Portability: GHC
+-- 
+-- 
+-- A simple abstraction for applications to use Mongrel2.
+-- Mongrel2 is simple and easy to use, and hopefully others
+-- find this module almost as easy.
+--
+-- > require Web.Mongrel2
+-- > require Control.Monad (forever)
+-- > 
+-- > main :: IO ()
+-- > main = do
+-- >   conn <- connect $ def { m2_publish = "tcp://127.0.0.1:9996
+-- >                         , m2_pull = "tcp://127.0.0.1:9997" }
+-- >   case m2_pull_socket conn of
+-- >     Nothing -> error "Didn't connect to Mongrel2!"
+-- >     Just sock ->
+-- >       forever $ poll sock >>=
+-- >                   recv dumper bx >>
+-- >                   return ()
+-- > 
+-- >  where
+-- >    dumper :: Request -> IO Response
+-- >    dumper req = do
+-- >      putStrLn req
+-- >      return $ defaultr req
+-- >
 
 module Web.Mongrel2 (
   M2(..)
   , Request(..)
   , Response(..)
-  , MongrelHeaders(..)
+    -- * Connection
   , connect
   , poll
   , recv
+    -- * Utilities
   , defaultr
   ) where
 
@@ -25,6 +59,7 @@ import Web.Mongrel2.Types
 
 import Data.Default (def)
 
+-- | Generate a 'Response' from the 'Request' copying sane defaults.
 defaultr :: Request -> Response
 defaultr req =
   def { response_uuid = request_uuid req
@@ -36,6 +71,7 @@ defaultr req =
 
 -- Response
 -- UUID SIZE:ID ID ID, BODY
+
 send_response :: Z.Socket a -> Response -> IO ()
 send_response sock resp = do
   now <- getClockTime
@@ -53,6 +89,8 @@ send_response sock resp = do
                    ("body",(response_body resp))] $
     newSTMP response_template) []
 
+-- | The receive action.
+-- 
 recv :: (Request -> IO Response) -> M2 -> [Z.Poll] -> IO ()
 recv handle pub ((Z.S s _):_ss) = do
   req <- Z.receive s []
@@ -65,10 +103,13 @@ recv handle pub ((Z.S s _):_ss) = do
         Just so -> send_response so rsp
 recv _ _ _ = return ()
 
+-- | Shortcut for @system-zeromq@'s poll function.
+-- Interval is hardcoded to 1000000 ms.
 poll :: Z.Socket a -> IO [Z.Poll]
 poll sock =
   Z.poll [Z.S sock Z.InOut] 1000000
 
+-- | Connects the internal sockets.
 connect :: M2 -> IO M2
 connect mong = do
   case ((,)
