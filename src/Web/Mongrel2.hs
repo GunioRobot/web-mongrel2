@@ -7,17 +7,17 @@
 -- Maintainer: cmoore@wamboli.com
 -- Stability: experimental
 -- Portability: GHC
--- 
--- 
+--
+--
 -- A simple abstraction for applications to use Mongrel2.
 -- Mongrel2 is simple and easy to use, and hopefully others
 -- find this module almost as easy.
--- 
+--
 -- Please direct any questions or comments, and /especially/ criticism to my email.  This is my first release to hackage and I'm very interested in how I can improve.
 --
 -- > require Web.Mongrel2
 -- > require Control.Monad (forever)
--- > 
+-- >
 -- > main :: IO ()
 -- > main = do
 -- >   conn <- connect $ def { m2_publish = "tcp://127.0.0.1:9996
@@ -28,7 +28,7 @@
 -- >       forever $ poll sock >>=
 -- >                   recv dumper bx >>
 -- >                   return ()
--- > 
+-- >
 -- >  where
 -- >    dumper :: Request -> IO Response
 -- >    dumper req = do
@@ -50,7 +50,6 @@ module Web.Mongrel2 (
 
 import Control.Applicative
 import qualified Data.ByteString.Char8 as BS
-import Prelude hiding (lookup)
 import System.Time (getClockTime)
 import qualified System.ZMQ as Z
 import Text.StringTemplate
@@ -67,7 +66,7 @@ defaultr req =
   def { response_uuid = request_uuid req
       , response_id = request_id req
       , response_path = request_path req }
-  
+
 -- Request
 -- UUID ID PATH SIZE:HEADERS,SIZE:BODY
 
@@ -77,26 +76,27 @@ defaultr req =
 send_response :: Z.Socket a -> Response -> IO ()
 send_response sock resp = do
   now <- getClockTime
-  Z.send sock (BS.pack $ render $
-    setAttribute "headers" (response_headers resp) $
-    setManyAttrib [("id", (response_id resp)),
-                   ("uuid", (response_uuid resp)),
-                   ("idl", (show $ length $ response_id resp)),
-                   ("now", (show now)),
-                   ("clen", (show $ length $ response_body resp)),
-                   ("sep", "\r\n"),
-                   ("status", response_status resp),
-                   ("contenttype", response_content_type resp),
-                   ("charset", response_charset resp),
-                   ("body",(response_body resp))] $
-    newSTMP response_template) []
+  let res = BS.pack $
+             render $
+             setAttribute "headers" (response_headers resp) $
+             setManyAttrib [("id", (response_id resp)),
+                            ("uuid", (response_uuid resp)),
+                            ("idl", (show $ length $ response_id resp)),
+                            ("now", (show now)),
+                            ("clen", (show $ length $ response_body resp)),
+                            ("sep", "\r\n"),
+                            ("status", response_status resp),
+                            ("contenttype", response_content_type resp),
+                            ("charset", response_charset resp),
+                            ("body",(response_body resp))] $
+             newSTMP response_template
+  Z.send sock res []
 
 -- | The receive action.
--- 
+--
 recv :: (Request -> IO Response) -> M2 -> [Z.Poll] -> IO ()
 recv handle pub ((Z.S s _):_ss) = do
   req <- Z.receive s []
-  putStrLn $ "REQ:\n" ++ (show req)
   case m2_parse (BS.unpack req) of
     Left err -> error err
     Right rq -> do
