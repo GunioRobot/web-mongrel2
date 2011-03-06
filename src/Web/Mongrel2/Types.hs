@@ -12,7 +12,7 @@ data Request = Request {
   request_path :: String,
   -- | The individual request id.
   request_id :: String,
-  
+ 
   -- | Any headers passed in from the server are copied to here.
   request_headers :: [(String,String)],
   request_method :: String,
@@ -34,18 +34,18 @@ data Response = Response {
   response_id :: String,
   -- | The request path.
   response_path :: String,
-  
+
   -- | This is for, for example, cookies.
-  -- 
-  -- > def { 
+  --
+  -- > def {
   -- >   response_headers = [("cookies","uid=10239120192")]
   -- > }
-  -- 
+  --
   -- Of course, they will need to be encoded, etc.
   -- May I be so bold as to suggest @Web.Encodings@ ? :) 
-  -- 
+  --
   response_headers :: [(String,String)],
-  
+
   -- | 404, 302, etc.
   response_status :: String,
   -- | Defaults to UTF-8
@@ -55,7 +55,7 @@ data Response = Response {
   response_body :: String
   } deriving(Show)
 
--- | Internal connection data.  
+-- | Internal connection data.
 -- 'm2_publish' and 'm2_pull' can be any ZeroMQ type that Mongrel2 supports.
 data M2 = M2 {
   -- | The address to connect for replies back to Mongrel2.
@@ -65,6 +65,8 @@ data M2 = M2 {
   m2_pull :: String,
   m2_pull_socket :: Maybe (Socket Pull),
   m2_context :: Maybe Context,
+  -- | The application identifier.
+  -- This defaults to a standard uuid, but you probably want to supply your own.
   m2_uuid :: Maybe String
   }
 
@@ -83,7 +85,7 @@ instance Default Request where
     request_uuid = def,
     request_id = def,
     request_path = "/",
-    
+
     request_headers = def,
     request_method = def,
     request_version = def,
@@ -100,7 +102,7 @@ instance Default Response where
     response_id = def,
     response_uuid = def,
     response_path = "/",
-    
+
     response_charset = "UTF-8",
     response_content_type = "text/plain",
     response_headers = def,

@@ -1,5 +1,5 @@
 name: web-mongrel2
-version: 0.0.2.2
+version: 0.0.2.3
 build-type: Simple
 license: BSD3
 license-file: LICENSE
@@ -15,7 +15,7 @@ build-depends:
  mtl >= 2,
  old-time,
  haskell98,
- zeromq-haskell == 0.4.1,
+ zeromq-haskell,
  template-haskell -any,
  HStringTemplate
 

@@ -13,20 +13,19 @@
 -- Mongrel2 is simple and easy to use, and hopefully others
 -- find this module almost as easy.
 --
--- Please direct any questions or comments, and /especially/ criticism to my email.  This is my first release to hackage and I'm very interested in how I can improve.
---
 -- > require Web.Mongrel2
 -- > require Control.Monad (forever)
 -- >
 -- > main :: IO ()
 -- > main = do
 -- >   conn <- connect $ def { m2_publish = "tcp://127.0.0.1:9996
--- >                         , m2_pull = "tcp://127.0.0.1:9997" }
+-- >                         , m2_pull = "tcp://127.0.0.1:9997"
+-- >                         , m2_uuid = "my-awesome-webapp" }
 -- >   case m2_pull_socket conn of
 -- >     Nothing -> error "Didn't connect to Mongrel2!"
 -- >     Just sock ->
 -- >       forever $ poll sock >>=
--- >                   recv dumper bx >>
+-- >                   recv dumper conn >>
 -- >                   return ()
 -- >
 -- >  where
@@ -53,9 +52,9 @@ import qualified Data.ByteString.Char8 as BS
 import System.Time (getClockTime)
 import qualified System.ZMQ as Z
 import Text.StringTemplate
+import qualified Data.List as L
 
 import Web.Mongrel2.Parsing
-import Web.Mongrel2.QQ (qq)
 import Web.Mongrel2.Types
 
 import Data.Default (def)
@@ -76,6 +75,9 @@ defaultr req =
 send_response :: Z.Socket a -> Response -> IO ()
 send_response sock resp = do
   now <- getClockTime
+  -- TODO: Why the hell do I have to do this?
+  -- TODO: Otherwise, every response is missing one character.
+  let leng = (L.length $ response_body resp) + 1
   let res = BS.pack $
              render $
              setAttribute "headers" (response_headers resp) $
@@ -83,7 +85,7 @@ send_response sock resp = do
                             ("uuid", (response_uuid resp)),
                             ("idl", (show $ length $ response_id resp)),
                             ("now", (show now)),
-                            ("clen", (show $ length $ response_body resp)),
+                            ("clen", show leng),
                             ("sep", "\r\n"),
                             ("status", response_status resp),
                             ("contenttype", response_content_type resp),
@@ -123,14 +125,14 @@ connect mong = do
       ctx <- Z.init 1
       pub <- Z.socket ctx Z.Pub
       pull <- Z.socket ctx Z.Pull
-      
+
       let uid = case m2_uuid mong of
             Just v -> v
             Nothing -> "82209006-86GF-4982-B5EA-D1E29E55D481"
-            
+
       Z.connect pull $ m2_pull mong
       Z.setOption pull $ Z.Identity uid
-      
+
       Z.connect pub $ m2_publish mong
 
       return $
@@ -141,7 +143,7 @@ connect mong = do
              }
 
 response_template :: String
-response_template = [$qq|$uuid$ $idl$:$id$, HTTP/1.1 $status$ OK
+response_template = [qq|$uuid$ $idl$:$id$, HTTP/1.1 $status$ OK
 Content-Type: $contenttype$; charset=$charset$
 Connection: close
 Content-Length: $clen$
