@@ -6,6 +6,7 @@ import Text.ParserCombinators.Parsec hiding ((<|>))
 import Data.Default
 import Text.JSON
 import Char (toLower)
+
 import Web.Mongrel2.Types
 
 m2_parse :: String -> Either String Request
@@ -39,13 +40,16 @@ m2_parse request =
        Right (headers_,query_string_) ->
          case decode headers_ of
            Ok (JSObject json) -> do
-             let unjs = concat $
-                        map (\(x,JSString y) -> do
-                                [(x,fromJSString y)]
-                            ) $ fromJSObject json
+             let unjs =
+                   concat $
+                   map (\(x,y') ->
+                         case y' of
+                           JSString y -> [(x,fromJSString y)]
+                           _ -> []
+                       ) $ fromJSObject json
           
              Right $ def { request_path = ml "PATH" json
-                         , request_method = ml "METHOD" json
+                         , request_method = string_to_method $ ml "METHOD" json
                          , request_version = ml "VERSION" json
                          , request_uri = ml "URI" json
                          , request_headers = unjs
@@ -73,9 +77,7 @@ m2_parse request =
     return (x,xy)
 
 number :: Parser Int
-number = do
-  b <- many1 digit
-  return $ read b
+number = many1 digit >>= (return . read)
 
 mlookup :: String -> JSObject JSValue -> Maybe String
 mlookup key bndl =
@@ -87,3 +89,12 @@ mlookup key bndl =
      case valFromObj k b of
        Ok v -> Just $ fromJSString v
        _ -> Nothing
+
+string_to_method :: String -> RequestMethod
+string_to_method "GET" = GET
+string_to_method "POST" = POST
+string_to_method "PUT" = PUT
+string_to_method "DELETE" = DELETE
+string_to_method "HEAD" = HEAD
+string_to_method lx = error $ "Unknown method: " ++ lx
+

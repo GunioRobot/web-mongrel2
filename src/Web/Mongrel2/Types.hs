@@ -4,6 +4,15 @@ module Web.Mongrel2.Types where
 import Data.Default
 import System.ZMQ
 
+data RequestMethod = POST
+                   | GET
+                   | HEAD
+                   | PUT
+                   | DELETE
+  
+instance Default RequestMethod where
+  def = GET
+
 -- | An incoming request from the server.
 data Request = Request {
   -- | The uuid of the server.
@@ -15,7 +24,7 @@ data Request = Request {
  
   -- | Any headers passed in from the server are copied to here.
   request_headers :: [(String,String)],
-  request_method :: String,
+  request_method :: RequestMethod,
   request_version :: String,
   request_uri :: String,
   request_pattern :: String,
@@ -23,7 +32,7 @@ data Request = Request {
   request_host :: String,
   request_query_string :: String,
   request_user_agent :: String
-  } deriving (Show)
+  }
 
 -- | The response to send back.
 -- 'response_uuid', 'response_id', and 'response_path' are passed from the request and are needed for the response back to Mongrel2.
@@ -53,7 +62,7 @@ data Response = Response {
   -- | Defaults to text/plain
   response_content_type :: String,
   response_body :: String
-  } deriving(Show)
+  }
 
 -- | Internal connection data.
 -- 'm2_publish' and 'm2_pull' can be any ZeroMQ type that Mongrel2 supports.

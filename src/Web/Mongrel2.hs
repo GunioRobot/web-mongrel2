@@ -1,4 +1,4 @@
-{-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 -- |
 -- Module: Web.Mongrel2
@@ -56,6 +56,7 @@ import qualified Data.List as L
 
 import Web.Mongrel2.Parsing
 import Web.Mongrel2.Types
+import Data.FileEmbed (embedFile)
 
 import Data.Default (def)
 
@@ -143,15 +144,4 @@ connect mong = do
              }
 
 response_template :: String
-response_template = [qq|$uuid$ $idl$:$id$, HTTP/1.1 $status$ OK
-Content-Type: $contenttype$; charset=$charset$
-Connection: close
-Content-Length: $clen$
-Server: Mongrel2
-Date: $now$
-$headers:{a|$a.0$:$a.1$
-}$
-
-$body$
-
-|]
+response_template = BS.unpack $(embedFile "response_template.st")
