@@ -36,11 +36,8 @@
 -- >
 
 module Web.Mongrel2 (
-  M2(..)
-  , Request(..)
-  , Response(..)
     -- * Connection
-  , connect
+  connect
   , poll
   , recv
     -- * Utilities
@@ -56,6 +53,7 @@ import qualified Data.List as L
 
 import Web.Mongrel2.Parsing
 import Web.Mongrel2.Types
+
 import Data.FileEmbed (embedFile)
 
 import Data.Default (def)

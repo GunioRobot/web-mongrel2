@@ -9,7 +9,14 @@ data RequestMethod = POST
                    | HEAD
                    | PUT
                    | DELETE
-  
+
+instance Show RequestMethod where
+  show POST = "POST"
+  show GET = "GET"
+  show HEAD = "HEAD"
+  show PUT = "PUT"
+  show DELETE = "DELETE"
+
 instance Default RequestMethod where
   def = GET
 
@@ -32,7 +39,7 @@ data Request = Request {
   request_host :: String,
   request_query_string :: String,
   request_user_agent :: String
-  }
+  } deriving (Show)
 
 -- | The response to send back.
 -- 'response_uuid', 'response_id', and 'response_path' are passed from the request and are needed for the response back to Mongrel2.
@@ -62,7 +69,7 @@ data Response = Response {
   -- | Defaults to text/plain
   response_content_type :: String,
   response_body :: String
-  }
+  } deriving (Show)
 
 -- | Internal connection data.
 -- 'm2_publish' and 'm2_pull' can be any ZeroMQ type that Mongrel2 supports.
