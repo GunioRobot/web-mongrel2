@@ -63,7 +63,8 @@ defaultr :: Request -> Response
 defaultr req =
   def { response_uuid = request_uuid req
       , response_id = request_id req
-      , response_path = request_path req }
+      , response_path = request_path req 
+      , response_headers = request_headers req }
 
 -- Request
 -- UUID ID PATH SIZE:HEADERS,SIZE:BODY
