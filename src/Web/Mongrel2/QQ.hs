@@ -7,4 +7,4 @@ import Language.Haskell.TH.Quote
 import Language.Haskell.TH.Lib
 
 qq :: QuasiQuoter
-qq = QuasiQuoter (litE . stringL) (litP . stringL)
+qq = QuasiQuoter (litE . stringL) (litP . stringL) undefined undefined
