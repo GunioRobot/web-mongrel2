@@ -15,7 +15,7 @@ build-depends:
  mtl >= 2,
  old-time,
  haskell98,
- zeromq-haskell,
+ zeromq-haskell == 0.4.1,
  template-haskell -any,
  HStringTemplate,
  file-embed
