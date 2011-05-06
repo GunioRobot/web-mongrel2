@@ -1,15 +1,16 @@
-
+{-# LANGUAGE OverloadedStrings #-}
 module Web.Mongrel2.Parsing (m2_parse) where
 
+import qualified Data.Text as T
 import Control.Applicative hiding (many)
-import Text.ParserCombinators.Parsec hiding ((<|>))
+import Text.Parsec.Text
+import Text.Parsec hiding ((<|>))
 import Data.Default
-import Text.JSON
-import Char (toLower)
+import qualified Text.JSON as JS
 
 import Web.Mongrel2.Types
 
-m2_parse :: String -> Either String Request
+m2_parse :: T.Text -> Either T.Text Request
 m2_parse request =
   case parse request_split "" request of
     Right (uui,seqq,pat,blk) ->
@@ -19,9 +20,9 @@ m2_parse request =
           Right req { request_uuid = uui
                     , request_id = seqq
                     , request_path = pat }
-    Left a -> Left $ show a
+    Left a -> Left $ T.pack $ show a
  where   
-   request_split :: Parser (String,String,String,String)
+   request_split :: Parser (T.Text,T.Text,T.Text,T.Text)
    request_split = do
      uui <- many $ noneOf " "
      _ <- space
@@ -31,22 +32,22 @@ m2_parse request =
      _ <- space
      rest <- many anyToken
      
-     return (uui,iid,path,rest)
+     return (T.pack uui,T.pack iid,T.pack path,T.pack rest)
      
-   request_env :: String -> Either String Request
+   request_env :: T.Text -> Either T.Text Request
    request_env request_body =
      case parse qstr "" request_body of
-       Left x -> Left $ show x
+       Left x -> Left $ T.pack $ show x
        Right (headers_,query_string_) ->
-         case decode headers_ of
-           Ok (JSObject json) -> do
+         case JS.decode (T.unpack headers_) of
+           JS.Ok (JS.JSObject json) -> do
              let unjs =
                    concat $
                    map (\(x,y') ->
                          case y' of
-                           JSString y -> [(x,fromJSString y)]
+                           JS.JSString y -> [(T.pack x,T.pack $ JS.fromJSString y)]
                            _ -> []
-                       ) $ fromJSObject json
+                       ) $ JS.fromJSObject json
           
              Right $ def { request_path = ml "PATH" json
                          , request_method = string_to_method $ ml "METHOD" json
@@ -61,10 +62,10 @@ m2_parse request =
                          }
             
            _ -> Left "error parsing the headers."
-   ml :: String -> JSObject JSValue -> String
+   ml :: T.Text -> JS.JSObject JS.JSValue -> T.Text
    ml k b = maybe "" id $ mlookup k b
   
-   qstr :: Parser (String,String)
+   qstr :: Parser (T.Text,T.Text)
    qstr = do
     n <- number
     _ <- char ':'
@@ -74,27 +75,27 @@ m2_parse request =
     _ <- char ':'
     xy <- count nx anyChar
     
-    return (x,xy)
+    return (T.pack x,T.pack xy)
 
 number :: Parser Int
 number = many1 digit >>= (return . read)
 
-mlookup :: String -> JSObject JSValue -> Maybe String
+mlookup :: T.Text -> JS.JSObject JS.JSValue -> Maybe T.Text
 mlookup key bndl =
   -- TODO: Not so sure that the alternate toLower is needed.
-  mlookup' key bndl <|> mlookup' (map toLower key) bndl
+  mlookup' key bndl <|> mlookup' (T.toLower key) bndl
  where
-   mlookup' :: String -> JSObject JSValue -> Maybe String
+   mlookup' :: T.Text -> JS.JSObject JS.JSValue -> Maybe T.Text
    mlookup' k b = 
-     case valFromObj k b of
-       Ok v -> Just $ fromJSString v
+     case JS.valFromObj (T.unpack k) b of
+       JS.Ok v -> Just $ T.pack $ JS.fromJSString v
        _ -> Nothing
 
-string_to_method :: String -> RequestMethod
+string_to_method :: T.Text -> RequestMethod
 string_to_method "GET" = GET
 string_to_method "POST" = POST
 string_to_method "PUT" = PUT
 string_to_method "DELETE" = DELETE
 string_to_method "HEAD" = HEAD
-string_to_method lx = error $ "Unknown method: " ++ lx
+string_to_method lx = error $ "Unknown method: " ++ T.unpack lx
 

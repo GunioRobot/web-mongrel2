@@ -1,8 +1,10 @@
-
+{-# LANGUAGE OverloadedStrings #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 module Web.Mongrel2.Types where
 
 import Data.Default
 import System.ZMQ
+import qualified Data.Text as T
 
 data RequestMethod = POST
                    | GET
@@ -19,37 +21,40 @@ instance Show RequestMethod where
 
 instance Default RequestMethod where
   def = GET
-
+  
+instance Default T.Text where
+  def = ""
+  
 -- | An incoming request from the server.
 data Request = Request {
   -- | The uuid of the server.
-  request_uuid :: String,
+  request_uuid :: T.Text,
   -- | The path as passed in from Mongrel2.
-  request_path :: String,
+  request_path :: T.Text,
   -- | The individual request id.
-  request_id :: String,
+  request_id :: T.Text,
  
   -- | Any headers passed in from the server are copied to here.
-  request_headers :: [(String,String)],
+  request_headers :: [(T.Text,T.Text)],
   request_method :: RequestMethod,
-  request_version :: String,
-  request_uri :: String,
-  request_pattern :: String,
-  request_accept :: String,
-  request_host :: String,
-  request_query_string :: String,
-  request_user_agent :: String
+  request_version :: T.Text,
+  request_uri :: T.Text,
+  request_pattern :: T.Text,
+  request_accept :: T.Text,
+  request_host :: T.Text,
+  request_query_string :: T.Text,
+  request_user_agent :: T.Text
   } deriving (Show)
 
 -- | The response to send back.
 -- 'response_uuid', 'response_id', and 'response_path' are passed from the request and are needed for the response back to Mongrel2.
 data Response = Response {
   -- | The uuid of the server.
-  response_uuid :: String,
+  response_uuid :: T.Text,
   -- | The request id.
-  response_id :: String,
+  response_id :: T.Text,
   -- | The request path.
-  response_path :: String,
+  response_path :: T.Text,
 
   -- | This is for, for example, cookies.
   --
@@ -60,30 +65,30 @@ data Response = Response {
   -- Of course, they will need to be encoded, etc.
   -- May I be so bold as to suggest @Web.Encodings@ ? :) 
   --
-  response_headers :: [(String,String)],
+  response_headers :: [(T.Text,T.Text)],
 
   -- | 404, 302, etc.
-  response_status :: String,
+  response_status :: T.Text,
   -- | Defaults to UTF-8
-  response_charset :: String,
+  response_charset :: T.Text,
   -- | Defaults to text/plain
-  response_content_type :: String,
-  response_body :: String
+  response_content_type :: T.Text,
+  response_body :: T.Text
   } deriving (Show)
 
 -- | Internal connection data.
 -- 'm2_publish' and 'm2_pull' can be any ZeroMQ type that Mongrel2 supports.
 data M2 = M2 {
   -- | The address to connect for replies back to Mongrel2.
-  m2_publish :: String,
+  m2_publish :: T.Text,
   m2_publish_socket :: Maybe (Socket Pub),
   -- | The address to poll for requests.
-  m2_pull :: String,
+  m2_pull :: T.Text,
   m2_pull_socket :: Maybe (Socket Pull),
   m2_context :: Maybe Context,
   -- | The application identifier.
   -- This defaults to a standard uuid, but you probably want to supply your own.
-  m2_uuid :: Maybe String
+  m2_uuid :: Maybe T.Text
   }
 
 instance Default M2 where

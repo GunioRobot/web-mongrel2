@@ -44,19 +44,19 @@ module Web.Mongrel2 (
   , defaultr
   ) where
 
+import qualified Data.Text as T
+import qualified Data.Text.Encoding as TE
+
 import Control.Applicative
 import qualified Data.ByteString.Char8 as BS
+import Data.Default (def)
+import Data.FileEmbed (embedFile)
 import System.Time (getClockTime)
 import qualified System.ZMQ as Z
 import Text.StringTemplate
-import qualified Data.List as L
 
 import Web.Mongrel2.Parsing
 import Web.Mongrel2.Types
-
-import Data.FileEmbed (embedFile)
-
-import Data.Default (def)
 
 -- | Generate a 'Response' from the 'Request' copying sane defaults.
 defaultr :: Request -> Response
@@ -77,16 +77,17 @@ send_response sock resp = do
   now <- getClockTime
   -- TODO: Why the hell do I have to do this?
   -- TODO: Otherwise, every response is missing one character.
-  let leng = (L.length $ response_body resp) + 1
+  let leng = (T.length $ response_body resp) + 1
+                    
   let res = BS.pack $
              render $
              setAttribute "headers" (response_headers resp) $
              setManyAttrib [("id", (response_id resp)),
                             ("uuid", (response_uuid resp)),
-                            ("idl", (show $ length $ response_id resp)),
-                            ("now", (show now)),
-                            ("clen", show leng),
-                            ("sep", "\r\n"),
+                            ("idl", (T.pack $ show $ T.length $ response_id resp)),
+                            ("now", (T.pack $ show now)),
+                            ("clen", T.pack $ show leng),
+                            ("sep", T.pack "\r\n"),
                             ("status", response_status resp),
                             ("contenttype", response_content_type resp),
                             ("charset", response_charset resp),
@@ -99,8 +100,8 @@ send_response sock resp = do
 recv :: (Request -> IO Response) -> M2 -> [Z.Poll] -> IO ()
 recv handle pub ((Z.S s _):_ss) = do
   req <- Z.receive s []
-  case m2_parse (BS.unpack req) of
-    Left err -> error err
+  case m2_parse (TE.decodeUtf8 req) of
+    Left err -> error $ T.unpack err
     Right rq -> do
       rsp <- handle rq
       case m2_publish_socket pub of
@@ -128,12 +129,12 @@ connect mong = do
 
       let uid = case m2_uuid mong of
             Just v -> v
-            Nothing -> "82209006-86GF-4982-B5EA-D1E29E55D481"
+            Nothing -> T.pack "82209006-86GF-4982-B5EA-D1E29E55D481"
 
-      Z.connect pull $ m2_pull mong
-      Z.setOption pull $ Z.Identity uid
+      Z.connect pull $ T.unpack $ m2_pull mong
+      Z.setOption pull $ Z.Identity $ T.unpack uid
 
-      Z.connect pub $ m2_publish mong
+      Z.connect pub $ T.unpack $ m2_publish mong
 
       return $
         mong { m2_publish_socket = Just pub
