@@ -4,7 +4,7 @@ module Web.Mongrel2.Types where
 
 import Data.Default
 import System.ZMQ
-import qualified Data.Text as T
+import qualified Data.Text.Lazy as T
 
 data RequestMethod = POST
                    | GET
@@ -80,11 +80,11 @@ data Response = Response {
 -- 'm2_publish' and 'm2_pull' can be any ZeroMQ type that Mongrel2 supports.
 data M2 = M2 {
   -- | The address to connect for replies back to Mongrel2.
-  m2_publish :: T.Text,
-  m2_publish_socket :: Maybe (Socket Pub),
+  m2_pub :: T.Text,
+  m2_pub_socket :: Maybe (Socket Pub),
   -- | The address to poll for requests.
-  m2_pull :: T.Text,
-  m2_pull_socket :: Maybe (Socket Pull),
+  m2_sub :: T.Text,
+  m2_sub_socket :: Maybe (Socket Pull),
   m2_context :: Maybe Context,
   -- | The application identifier.
   -- This defaults to a standard uuid, but you probably want to supply your own.
@@ -93,10 +93,10 @@ data M2 = M2 {
 
 instance Default M2 where
   def = M2 {
-    m2_publish = def,
-    m2_publish_socket = Nothing,
-    m2_pull = def,
-    m2_pull_socket = Nothing,
+    m2_pub = def,
+    m2_pub_socket = Nothing,
+    m2_sub = def,
+    m2_sub_socket = Nothing,
     m2_context = Nothing,
     m2_uuid = Nothing
     }

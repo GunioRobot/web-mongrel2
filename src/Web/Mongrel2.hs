@@ -44,8 +44,10 @@ module Web.Mongrel2 (
   , defaultr
   ) where
 
-import qualified Data.Text as T
-import qualified Data.Text.Encoding as TE
+import qualified Data.Text as TS
+import qualified Data.Text.Encoding as TSE
+
+import qualified Data.Text.Lazy as T
 
 import Control.Applicative
 import qualified Data.ByteString.Char8 as BS
@@ -100,11 +102,11 @@ send_response sock resp = do
 recv :: (Request -> IO Response) -> M2 -> [Z.Poll] -> IO ()
 recv handle pub ((Z.S s _):_ss) = do
   req <- Z.receive s []
-  case m2_parse (TE.decodeUtf8 req) of
+  case m2_parse (T.pack $ TS.unpack $ TSE.decodeUtf8 req) of
     Left err -> error $ T.unpack err
     Right rq -> do
       rsp <- handle rq
-      case m2_publish_socket pub of
+      case m2_pub_socket pub of
         Nothing -> error "Publish socket not connected?!"
         Just so -> send_response so rsp
 recv _ _ _ = return ()
@@ -119,8 +121,8 @@ poll sock =
 connect :: M2 -> IO M2
 connect mong = do
   case ((,)
-        <$> m2_publish_socket mong
-        <*> m2_pull_socket mong ) of
+        <$> m2_pub_socket mong
+        <*> m2_sub_socket mong ) of
     Just _ -> return mong
     Nothing -> do
       ctx <- Z.init 1
@@ -131,14 +133,14 @@ connect mong = do
             Just v -> v
             Nothing -> T.pack "82209006-86GF-4982-B5EA-D1E29E55D481"
 
-      Z.connect pull $ T.unpack $ m2_pull mong
+      Z.connect pull $ T.unpack $ m2_sub mong
       Z.setOption pull $ Z.Identity $ T.unpack uid
 
-      Z.connect pub $ T.unpack $ m2_publish mong
+      Z.connect pub $ T.unpack $ m2_pub mong
 
       return $
-        mong { m2_publish_socket = Just pub
-             , m2_pull_socket = Just pull
+        mong { m2_pub_socket = Just pub
+             , m2_sub_socket = Just pull
              , m2_context = Just ctx
              , m2_uuid = Just uid
              }

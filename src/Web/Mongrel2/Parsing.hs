@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Web.Mongrel2.Parsing (m2_parse) where
 
-import qualified Data.Text as T
+import qualified Data.Text.Lazy as T
 import Control.Applicative hiding (many)
 import Text.Parsec.Text
 import Text.Parsec hiding ((<|>))
@@ -31,7 +31,7 @@ m2_parse request =
      path <- many $ noneOf " "
      _ <- space
      rest <- many anyToken
-     
+             
      return (T.pack uui,T.pack iid,T.pack path,T.pack rest)
      
    request_env :: T.Text -> Either T.Text Request

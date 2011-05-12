@@ -8,7 +8,7 @@ module Text.Parsec.Text ( module Text.Parsec.Char, Parser, GenParser ) where
 
 import Text.Parsec.Prim
 import Text.Parsec.Char
-import qualified Data.Text as T
+import qualified Data.Text.Lazy as T
 
 instance (Monad m) => Stream T.Text m Char where
   uncons = return . T.uncons
