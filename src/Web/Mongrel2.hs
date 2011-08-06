@@ -36,8 +36,10 @@
 -- >
 
 module Web.Mongrel2 (
+    -- * Modules
+  module Web.Mongrel2.Types
     -- * Connection
-  connect
+  , connect
   , poll
   , recv
     -- * Utilities
