@@ -15,10 +15,10 @@ build-depends:
  mtl >= 2,
  old-time,
  haskell98,
- zeromq-haskell == 0.4.1,
+ zeromq-haskell,
  template-haskell -any,
  HStringTemplate,
- file-embed
+ file-embed, groom
 
 stability: unstable
 homepage: http://github.com/cmoore/web-mongrel2
